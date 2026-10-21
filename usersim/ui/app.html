@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>usersim</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1b1f; --muted:#6b6f76; --line:#e3e5e8; --card:#f7f8fa; --accent:#2457d6; --good:#1b8a3c; --bad:#c0392b; --warn:#b7791f; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#141518; --fg:#e8e8ea; --muted:#9a9ea6; --line:#2c2f35; --card:#1d1f24; --accent:#7aa2ff; --good:#4cc26b; --bad:#ef6a5c; --warn:#e2a93b; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 14px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--fg); }
+  header { display:flex; gap:18px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:2; }
+  header h1 { font-size:16px; margin:0 12px 0 0; }
+  header button { background:none; border:none; color:var(--muted); font-size:14px; padding:6px 4px; cursor:pointer; border-bottom:2px solid transparent; }
+  header button.on { color:var(--fg); border-bottom-color:var(--accent); }
+  main { padding:16px; max-width:1300px; margin:0 auto; }
+  section { display:none; } section.on { display:block; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:12px; }
+  tr.row:hover { background:var(--card); cursor:pointer; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin:10px 0; }
+  .muted { color:var(--muted); } .good { color:var(--good); } .bad { color:var(--bad); } .warn { color:var(--warn); }
+  .pill { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; border:1px solid var(--line); margin-right:4px; }
+  .pill.PASS { color:var(--good); border-color:var(--good); } .pill.FAIL { color:var(--bad); border-color:var(--bad); } .pill.UNSURE, .pill.UNREADABLE { color:var(--warn); border-color:var(--warn); }
+  label { display:block; margin:8px 0 2px; color:var(--muted); font-size:12px; }
+  input[type=text], input[type=number], textarea, select { width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); font:inherit; }
+  textarea { min-height:60px; resize:vertical; }
+  .btn { padding:7px 14px; border-radius:6px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; font:inherit; }
+  .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .btn.danger { color:var(--bad); }
+  .grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; } @media (max-width: 900px) { .grid { grid-template-columns:1fr; } }
+  .turn { margin:10px 0; padding:8px 10px; border-left:3px solid var(--line); }
+  .turn.user { border-left-color:var(--accent); } .turn.assistant { border-left-color:var(--good); }
+  details { margin:4px 0; } summary { cursor:pointer; color:var(--muted); }
+  pre { white-space:pre-wrap; word-break:break-word; background:var(--card); padding:8px; border-radius:6px; font-size:12px; max-height:360px; overflow:auto; }
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0; }
+  .help { font-size:12px; color:var(--muted); }
+  .chk { display:inline-flex; align-items:center; gap:4px; margin-right:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>usersim</h1>
+  <button data-tab="scenarios" class="on">Scenarios</button>
+  <button data-tab="run">Run</button>
+  <button data-tab="results">Results</button>
+  <button data-tab="setup">Setup</button>
+  <span id="who" class="muted" style="margin-left:auto"></span>
+</header>
+<main>
+
+<section id="scenarios" class="on">
+  <div class="toolbar">
+    <button class="btn primary" onclick="newScenario()">New scenario</button>
+    <select id="sc-set-filter" onchange="renderScenarios()"><option value="">all sets</option></select>
+    <input type="text" id="sc-search" placeholder="search…" oninput="renderScenarios()" style="max-width:260px">
+    <span class="help" id="sc-count"></span>
+  </div>
+  <table id="sc-table"><thead><tr><th>id</th><th>opening</th><th>turns</th><th>beats</th><th>tags</th><th>lint</th></tr></thead><tbody></tbody></table>
+
+  <div id="sc-editor" class="card" style="display:none">
+    <div class="toolbar"><strong id="sc-editor-title">Scenario</strong><span class="help">Only <b>opening</b> reaches the assistant. Everything else briefs the simulated user and the judge. Use {name} {home} {car} {household} … for facts from the default user.</span></div>
+    <div class="grid">
+      <div>
+        <label>set (file under scenarios/)</label><input type="text" id="f-set" placeholder="daily">
+        <label>id (set/number_slug)</label><input type="text" id="f-id" placeholder="daily/07_dry_cleaner">
+        <label>opening — the first message, sent exactly as written</label><textarea id="f-opening"></textarea>
+        <label>situation — what is going on in the person's life (the assistant never sees this)</label><textarea id="f-situation"></textarea>
+        <label>goal — what they want out of the conversation</label><textarea id="f-goal"></textarea>
+        <label>done_when — when they consider it done (also the judge's hard requirement)</label><textarea id="f-done_when"></textarea>
+        <label>leaves — what running it creates on the account (so cleanup can undo it); "nothing" if nothing</label><input type="text" id="f-leaves">
+      </div>
+      <div>
+        <label>hidden — facts not in the opening, one per line, given out only when asked</label><textarea id="f-hidden" style="min-height:90px"></textarea>
+        <label>beats — ordered sub-goals, one per line (optional)</label><textarea id="f-beats"></textarea>
+        <label>reveal — how hidden facts come out (optional)</label><input type="text" id="f-reveal" placeholder="only when the assistant asks; one fact per reply">
+        <label>max_turns (optional; config default otherwise)</label><input type="number" id="f-max_turns" min="1" max="30">
+        <label>tags — comma separated</label><input type="text" id="f-tags" placeholder="local, calendar">
+        <label>user overrides — JSON of facts that differ from user.json for this scenario (optional)</label><textarea id="f-user" placeholder='{"car": "2016 Subaru Outback"}'></textarea>
+        <label>extra judge criteria — one per line (optional)</label><textarea id="f-criteria"></textarea>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button class="btn primary" onclick="saveScenario()">Save</button>
+      <button class="btn" onclick="previewScenario()">Preview the user model's briefing</button>
+      <button class="btn" onclick="document.getElementById('sc-editor').style.display='none'">Close</button>
+      <button class="btn danger" onclick="deleteScenario()" style="margin-left:auto">Delete</button>
+      <span id="sc-msg" class="help"></span>
+    </div>
+    <div id="sc-preview" style="display:none">
+      <label>assistant replies to simulate (one per line) — then ask the user model what it would say next</label>
+      <textarea id="f-assistant" placeholder="Which city are you in?"></textarea>
+      <div class="toolbar"><button class="btn" onclick="previewScenario(true)">Ask the user model (uses OpenRouter)</button><span id="sc-next" class="help"></span></div>
+      <pre id="sc-prompt"></pre>
+    </div>
+  </div>
+</section>
+
+<section id="run">
+  <div class="grid">
+    <div class="card">
+      <strong>Start a run</strong>
+      <label>scenarios (click to toggle; <a href="#" onclick="selectAll(true);return false">all</a> / <a href="#" onclick="selectAll(false);return false">none</a>)</label>
+      <div id="run-scenarios" style="max-height:320px; overflow:auto; border:1px solid var(--line); border-radius:6px; padding:6px"></div>
+      <label>assistant columns — comma separated: <code>default</code> (the product's model), <code>slot20</code> (a self-hosted lane), <code>claude-opus-5-5</code> (a catalog model)</label>
+      <input type="text" id="run-columns" value="default">
+      <div class="grid">
+        <div><label>repeats per scenario</label><input type="number" id="run-runs" value="1" min="1" max="10"></div>
+        <div><label>parallel conversations (never two on one account)</label><input type="number" id="run-parallel" value="4" min="1" max="20"></div>
+        <div><label>max user turns (blank = config)</label><input type="number" id="run-turns" min="1" max="30"></div>
+        <div><label>tag (name of the run)</label><input type="text" id="run-tag" value="ui"></div>
+      </div>
+      <label>accounts — leave empty to use every account in accounts.tsv</label>
+      <div id="run-accounts" style="max-height:120px; overflow:auto; border:1px solid var(--line); border-radius:6px; padding:6px"></div>
+      <div class="toolbar" style="margin-top:8px">
+        <span class="chk"><input type="checkbox" id="run-judge" checked> judge each conversation</span>
+        <span class="chk"><input type="checkbox" id="run-calibrate"> calibrate memory first</span>
+        <span class="chk"><input type="checkbox" id="run-cleanup"> clean up after</span>
+      </div>
+      <div class="toolbar"><button class="btn primary" onclick="startRun()">Start</button><span id="run-msg" class="help"></span></div>
+    </div>
+    <div class="card">
+      <strong>Runs</strong> <span class="help">(newest first; click one to read its log)</span>
+      <table id="runs-table"><thead><tr><th>run</th><th>status</th><th>conversations</th><th>verdicts</th><th>annotated</th><th></th></tr></thead><tbody></tbody></table>
+      <pre id="run-log" style="display:none"></pre>
+    </div>
+  </div>
+</section>
+
+<section id="results">
+  <div class="toolbar">
+    <select id="res-run" onchange="loadRun()"></select>
+    <select id="res-filter" onchange="renderRun()"><option value="">all</option><option value="PASS">judge PASS</option><option value="FAIL">judge FAIL</option><option value="UNREADABLE">judge unreadable</option><option value="error">assistant errors</option><option value="unannotated">not yet annotated</option></select>
+    <a id="res-export" class="btn" href="#" download>Export CSV</a>
+    <span id="res-summary" class="help"></span>
+  </div>
+  <table id="res-table"><thead><tr><th>scenario</th><th>column</th><th>account</th><th>turns</th><th>stop</th><th>judge</th><th>score</th><th>flags</th><th>human</th></tr></thead><tbody></tbody></table>
+  <div id="conv" class="card" style="display:none">
+    <div class="toolbar"><strong id="conv-title"></strong><button class="btn" style="margin-left:auto" onclick="document.getElementById('conv').style.display='none'">Close</button></div>
+    <div class="grid">
+      <div id="conv-turns"></div>
+      <div>
+        <div class="card"><strong>Judge</strong><div id="conv-judge"></div></div>
+        <div class="card"><strong>Your verdict</strong>
+          <div class="toolbar" style="margin-top:6px">
+            <label class="chk"><input type="radio" name="ann-v" value="PASS"> PASS</label>
+            <label class="chk"><input type="radio" name="ann-v" value="FAIL"> FAIL</label>
+            <label class="chk"><input type="radio" name="ann-v" value="UNSURE"> unsure</label>
+          </div>
+          <div id="ann-issues"></div>
+          <label>comment</label><textarea id="ann-comment"></textarea>
+          <label>your name</label><input type="text" id="ann-by">
+          <div class="toolbar"><button class="btn primary" onclick="saveAnnotation()">Save</button><span id="ann-msg" class="help"></span></div>
+        </div>
+        <details><summary>what the simulated user was told (hidden facts, goal)</summary><pre id="conv-brief"></pre></details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="setup">
+  <div class="card"><strong>Is everything in place?</strong><table id="setup-checks"><tbody></tbody></table>
+    <div class="help">Fix anything MISSING, then reload this page. The README has the steps.</div></div>
+  <div class="card"><strong>Settings (config.json)</strong><table id="setup-config"><tbody></tbody></table></div>
+  <div class="card"><strong>The default simulated user (user.json)</strong>
+    <div class="help">Facts are what {placeholders} in scenarios resolve to. Edit and save; keep it free of real people's details.</div>
+    <textarea id="user-json" style="min-height:260px; font-family:ui-monospace, Menlo, monospace; font-size:12px"></textarea>
+    <div class="toolbar"><button class="btn primary" onclick="saveUser()">Save user.json</button><span id="user-msg" class="help"></span></div></div>
+</section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+async function api(path, body) {
+  const r = await fetch(path, body ? {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)} : {});
+  const j = await r.json().catch(() => ({error: "bad response"}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+let STATE = {}, SCENARIOS = [], RUNS = [], RUN_ROWS = [], CUR = null;
+
+document.querySelectorAll("header button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(name) {
+  document.querySelectorAll("header button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+  document.querySelectorAll("main > section").forEach(s => s.classList.toggle("on", s.id === name));
+  if (name === "run") { renderRunForm(); loadRuns(); }
+  if (name === "results") loadRuns().then(loadRun);
+  if (name === "setup") renderSetup();
+  location.hash = name;
+}
+
+async function boot() {
+  try { STATE = await api("/api/state"); } catch (e) { alert("cannot reach the server: " + e.message); return; }
+  $("who").textContent = `user ${STATE.user} · ${STATE.config.env} · endpoint ${STATE.config.endpoint}`;
+  await loadScenarios();
+  showTab((location.hash || "#scenarios").slice(1));
+}
+
+// ── scenarios ────────────────────────────────────────────────────────────
+async function loadScenarios() {
+  SCENARIOS = await api("/api/scenarios");
+  const sel = $("sc-set-filter"); const cur = sel.value;
+  sel.innerHTML = '<option value="">all sets</option>' + [...new Set(SCENARIOS.map(s => s.set))].map(s => `<option ${s === cur ? "selected" : ""}>${esc(s)}</option>`).join("");
+  renderScenarios();
+}
+function renderScenarios() {
+  const set = $("sc-set-filter").value, q = $("sc-search").value.toLowerCase();
+  const rows = SCENARIOS.filter(s => (!set || s.set === set) && (!q || JSON.stringify(s).toLowerCase().includes(q)));
+  $("sc-count").textContent = `${rows.length} of ${SCENARIOS.length}`;
+  $("sc-table").querySelector("tbody").innerHTML = rows.map((s, i) => `<tr class="row" onclick="editScenario('${esc(s.id)}')">
+    <td><code>${esc(s.id)}</code></td><td>${esc((s.opening || "").slice(0, 110))}</td><td>${s.max_turns || ""}</td><td>${(s.beats || []).length || ""}</td>
+    <td>${(s.tags || []).map(t => `<span class="pill">${esc(t)}</span>`).join("")}</td>
+    <td>${s.problems && s.problems.length ? `<span class="bad" title="${esc(s.problems.join("\n"))}">${s.problems.length} problem(s)</span>` : '<span class="good">ok</span>'}</td></tr>`).join("");
+}
+function fillForm(s) {
+  $("f-set").value = s.set || ""; $("f-id").value = s.id || ""; $("f-opening").value = s.opening || ""; $("f-situation").value = s.situation || "";
+  $("f-goal").value = s.goal || ""; $("f-done_when").value = s.done_when || ""; $("f-leaves").value = s.leaves || "";
+  $("f-hidden").value = (s.hidden || []).join("\n"); $("f-beats").value = (s.beats || []).join("\n"); $("f-reveal").value = s.reveal || "";
+  $("f-max_turns").value = s.max_turns || ""; $("f-tags").value = (s.tags || []).join(", ");
+  $("f-user").value = s.user && Object.keys(s.user).length ? JSON.stringify(s.user) : ""; $("f-criteria").value = ((s.scoring || {}).criteria || []).join("\n");
+  $("sc-msg").textContent = s.problems && s.problems.length ? "lint: " + s.problems.join("; ") : "";
+  $("sc-editor").style.display = ""; $("sc-preview").style.display = "none";
+  $("sc-editor").scrollIntoView({behavior: "smooth"});
+}
+function readForm() {
+  const lines = (id) => $(id).value.split("\n").map(x => x.trim()).filter(Boolean);
+  const s = {id: $("f-id").value.trim(), opening: $("f-opening").value.trim(), situation: $("f-situation").value.trim(), goal: $("f-goal").value.trim(),
+             done_when: $("f-done_when").value.trim(), leaves: $("f-leaves").value.trim(), hidden: lines("f-hidden"), beats: lines("f-beats"),
+             tags: $("f-tags").value.split(",").map(x => x.trim()).filter(Boolean)};
+  if ($("f-reveal").value.trim()) s.reveal = $("f-reveal").value.trim();
+  if ($("f-max_turns").value) s.max_turns = parseInt($("f-max_turns").value, 10);
+  if ($("f-user").value.trim()) s.user = JSON.parse($("f-user").value);
+  const crit = lines("f-criteria"); if (crit.length) s.scoring = {criteria: crit};
+  return s;
+}
+function newScenario() { const set = $("sc-set-filter").value || "daily"; fillForm({set, id: set + "/", problems: []}); $("sc-editor-title").textContent = "New scenario"; }
+function editScenario(id) { const s = SCENARIOS.find(x => x.id === id); $("sc-editor-title").textContent = id; fillForm(s); }
+async function saveScenario() {
+  try {
+    const r = await api("/api/scenarios", {set: $("f-set").value.trim(), scenario: readForm()});
+    $("sc-msg").textContent = r.problems.length ? "saved, but lint says: " + r.problems.join("; ") : "saved ✓";
+    await loadScenarios();
+  } catch (e) { $("sc-msg").textContent = "not saved: " + e.message; }
+}
+async function deleteScenario() {
+  const id = $("f-id").value.trim(); if (!id || !confirm(`Delete ${id}?`)) return;
+  try { await api("/api/scenarios/delete", {set: $("f-set").value.trim(), id}); $("sc-editor").style.display = "none"; await loadScenarios(); }
+  catch (e) { $("sc-msg").textContent = e.message; }
+}
+async function previewScenario(callModel) {
+  $("sc-preview").style.display = "";
+  try {
+    const r = await api("/api/preview", {scenario: readForm(), assistant: $("f-assistant").value.split("\n"), call_model: !!callModel});
+    $("sc-prompt").textContent = (r.problems.length ? "LINT: " + r.problems.join("; ") + "\n\n" : "") + "OPENING (sent as is): " + r.opening + "\n\n--- the user model's briefing ---\n" + r.system_prompt;
+    $("sc-next").textContent = r.next ? `next user message: "${r.next.say}"  done=${r.next.done}  (${r.next.why})` : (r.error || "");
+  } catch (e) { $("sc-prompt").textContent = e.message; }
+}
+
+// ── run ───────────────────────────────────────────────────────────────────
+function renderRunForm() {
+  const sets = [...new Set(SCENARIOS.map(s => s.set))].filter(s => s !== "maint");
+  $("run-scenarios").innerHTML = sets.map(set => `<div><strong>${esc(set)}</strong> <a href="#" onclick="selectSet('${esc(set)}');return false" class="help">select set</a></div>` +
+    SCENARIOS.filter(s => s.set === set).map(s => `<label class="chk" style="display:flex"><input type="checkbox" class="run-sc" value="${esc(s.id)}" ${s.problems.length ? "disabled" : ""}> <code>${esc(s.id)}</code> <span class="help">${esc((s.opening || "").slice(0, 70))}</span></label>`).join("")).join("");
+  $("run-accounts").innerHTML = (STATE.accounts || []).map(a => `<label class="chk"><input type="checkbox" class="run-acct" value="${esc(a.email)}"> ${esc(a.email)} <span class="help">(${a.uses} uses)</span></label>`).join("") || '<span class="bad">no accounts in accounts.tsv</span>';
+  if (!$("run-columns").value) $("run-columns").value = STATE.default_column || "default";
+}
+function selectAll(on) { document.querySelectorAll(".run-sc:not(:disabled)").forEach(c => c.checked = on); }
+function selectSet(set) { document.querySelectorAll(".run-sc:not(:disabled)").forEach(c => { if (c.value.startsWith(set + "/")) c.checked = true; }); }
+async function startRun() {
+  const req = {scenarios: [...document.querySelectorAll(".run-sc:checked")].map(c => c.value), columns: $("run-columns").value.split(",").map(x => x.trim()).filter(Boolean),
+               runs: +$("run-runs").value || 1, parallel: +$("run-parallel").value || 4, max_turns: +$("run-turns").value || null, tag: $("run-tag").value,
+               score: $("run-judge").checked ? "judge" : "none", calibrate_first: $("run-calibrate").checked, cleanup: $("run-cleanup").checked,
+               accounts: [...document.querySelectorAll(".run-acct:checked")].map(c => c.value)};
+  if (!req.scenarios.length) { $("run-msg").textContent = "pick at least one scenario"; return; }
+  if (!confirm(`Start ${req.scenarios.length} scenario(s) × ${req.columns.length} column(s) × ${req.runs} on dev?`)) return;
+  try { const r = await api("/api/runs/start", req); $("run-msg").textContent = "started " + r.tag; setTimeout(loadRuns, 1500); }
+  catch (e) { $("run-msg").textContent = e.message; }
+}
+async function loadRuns() {
+  RUNS = await api("/api/runs");
+  $("runs-table").querySelector("tbody").innerHTML = RUNS.map(r => `<tr class="row" onclick="showLog('${esc(r.tag)}')"><td>${esc(r.name)}<div class="help">${esc(r.modified)}</div></td>
+    <td class="${r.status === "running" ? "warn" : ""}">${esc(r.status)}</td><td>${r.conversations}</td>
+    <td>${Object.entries(r.verdicts).map(([k, v]) => `<span class="pill ${esc(k)}">${esc(k)} ${v}</span>`).join("")}</td><td>${r.annotated}</td>
+    <td>${r.status === "running" ? `<button class="btn danger" onclick="event.stopPropagation();stopRun('${esc(r.tag)}')">stop</button>` : ""}
+        ${r.conversations ? `<button class="btn" onclick="event.stopPropagation();openResults('${esc(r.name)}')">results</button>` : ""}</td></tr>`).join("") || '<tr><td colspan="6" class="help">no runs yet</td></tr>';
+  const sel = $("res-run"); const cur = sel.value;
+  sel.innerHTML = RUNS.filter(r => r.conversations).map(r => `<option value="${esc(r.name)}" ${r.name === cur ? "selected" : ""}>${esc(r.name)} (${r.conversations})</option>`).join("");
+  if (RUNS.some(r => r.status === "running")) setTimeout(() => { if ($("run").classList.contains("on")) loadRuns(); }, 8000);
+}
+async function showLog(tag) {
+  const r = await fetch(`/api/log?tag=${encodeURIComponent(tag)}`); $("run-log").style.display = ""; $("run-log").textContent = await r.text(); $("run-log").scrollTop = 1e9;
+}
+async function stopRun(tag) { await api("/api/runs/stop", {tag}); loadRuns(); }
+function openResults(name) { showTab("results"); $("res-run").value = name; loadRun(); }
+
+// ── results ───────────────────────────────────────────────────────────────
+async function loadRun() {
+  const name = $("res-run").value; if (!name) { $("res-table").querySelector("tbody").innerHTML = ""; return; }
+  RUN_ROWS = await api(`/api/run?name=${encodeURIComponent(name)}`);
+  $("res-export").href = `/api/export?name=${encodeURIComponent(name)}`;
+  renderRun();
+}
+function renderRun() {
+  const f = $("res-filter").value;
+  const rows = RUN_ROWS.filter(r => !f || (f === "error" ? (r.stop === "assistant_error" || String(r.stop).startsWith("error")) : f === "unannotated" ? !r.annotation.verdict : r.verdict === f));
+  const byCol = {};
+  RUN_ROWS.forEach(r => { const c = byCol[r.column] = byCol[r.column] || {n: 0, pass: 0, judged: 0}; c.n++; if (r.verdict === "PASS") c.pass++; if (r.verdict === "PASS" || r.verdict === "FAIL") c.judged++; });
+  $("res-summary").textContent = Object.entries(byCol).map(([c, v]) => `${c}: ${v.pass}/${v.judged} judged PASS (${v.n} conversations)`).join(" · ");
+  $("res-table").querySelector("tbody").innerHTML = rows.map(r => `<tr class="row" onclick="openConversation('${esc(r.file)}')">
+    <td><code>${esc(r.scenario)}</code></td><td>${esc(r.column)}</td><td class="help">${esc((r.account || "").split("@")[0])}</td><td>${r.user_turns}</td>
+    <td class="${r.stop === "assistant_error" || String(r.stop).startsWith("error") ? "bad" : ""}">${esc(r.stop)}</td>
+    <td><span class="pill ${esc(r.verdict)}">${esc(r.verdict)}</span></td><td>${r.score ?? ""}</td>
+    <td class="help">${r.fabrication ? "fabrication " : ""}${r.violations ? "violations " : ""}${r.asked_first === false ? "did not ask first" : ""}</td>
+    <td>${r.annotation.verdict ? `<span class="pill ${esc(r.annotation.verdict)}">${esc(r.annotation.verdict)}</span>` : ""}${(r.annotation.issues || []).length ? `<span class="help">${esc(r.annotation.issues.join(", "))}</span>` : ""}</td></tr>`).join("");
+}
+async function openConversation(file) {
+  const run = $("res-run").value;
+  CUR = {run, file, data: await api(`/api/conversation?run=${encodeURIComponent(run)}&file=${encodeURIComponent(file)}`)};
+  const d = CUR.data;
+  $("conv-title").textContent = `${d.scenario} · ${d.column || "default"} · ${d.account || ""} · stop=${d.stop}`;
+  $("conv-turns").innerHTML = (d.turns || []).map(t => {
+    if (!t.user) return `<div class="turn help">user model decided to stop: ${esc((t.sim || {}).why)}</div>`;
+    const calls = (t.calls || []).map(c => `<details><summary>${esc(c.name)}${c.is_error ? ' <span class="bad">error</span>' : ""} <span class="help">${esc(JSON.stringify(c.input || {}).slice(0, 120))}</span></summary><pre>${esc(JSON.stringify(c.input || {}, null, 1))}\n→ ${esc(String(c.result || "").slice(0, 3000))}</pre></details>`).join("");
+    return `<div class="turn user"><strong>user ${t.n}</strong> ${esc(t.user)}${t.sim && t.sim.why ? `<div class="help">why: ${esc(t.sim.why)}</div>` : ""}</div>
+      <div class="turn assistant"><strong>assistant</strong> <span class="help">${esc(t.reason || "?")} · ${(t.calls || []).length} tool calls · ${Math.round(t.duration_s || 0)} s${t.error ? ` · <span class="bad">${esc(t.error)}</span>` : ""}</span>
+      <div>${esc(t.assistant || "(no reply)")}</div>${calls}</div>`;
+  }).join("");
+  const j = ((d.score || {}).judge || [])[0] || {};
+  $("conv-judge").innerHTML = `<div><span class="pill ${esc((d.score || {}).verdict || "-")}">${esc((d.score || {}).verdict || "-")}</span> score ${j.score ?? "?"} · steps ${j.steps_completed ?? "?"} · asked first: ${j.asked_before_acting ?? "?"} · unnecessary questions: ${j.unnecessary_questions ?? "?"} · fabrication: ${j.fabrication ?? "?"}</div>
+    <p>${esc(j.reasoning || (d.score || {}).lines?.join("\n") || "")}</p>
+    ${(j.violations || []).length ? `<div class="bad">violations: ${esc(j.violations.join("; "))}</div>` : ""}
+    ${(j.fabrication_examples || []).length ? `<div class="warn">fabrication: ${esc(j.fabrication_examples.join("; "))}</div>` : ""}
+    ${(j.feasibility_issues || []).length ? `<div class="help">feasibility: ${esc(j.feasibility_issues.join("; "))}</div>` : ""}`;
+  const a = d.annotation || {};
+  document.querySelectorAll('input[name="ann-v"]').forEach(r => r.checked = r.value === a.verdict);
+  $("ann-issues").innerHTML = (STATE.issues || []).map(i => `<label class="chk"><input type="checkbox" class="ann-i" value="${esc(i)}" ${(a.issues || []).includes(i) ? "checked" : ""}> ${esc(i)}</label>`).join("");
+  $("ann-comment").value = a.comment || ""; $("ann-by").value = a.by || localStorage.getItem("usersim.by") || ""; $("ann-msg").textContent = a.time ? `last saved ${a.time} by ${a.by || "?"}` : "";
+  const sc = SCENARIOS.find(s => s.id === d.scenario) || {};
+  $("conv-brief").textContent = `goal: ${sc.goal || ""}\nhidden:\n- ${(sc.hidden || []).join("\n- ")}\nbeats:\n- ${(sc.beats || []).join("\n- ")}\ndone_when: ${sc.done_when || ""}`;
+  $("conv").style.display = ""; $("conv").scrollIntoView({behavior: "smooth"});
+}
+async function saveAnnotation() {
+  const v = document.querySelector('input[name="ann-v"]:checked');
+  const ann = {verdict: v ? v.value : "", issues: [...document.querySelectorAll(".ann-i:checked")].map(c => c.value), comment: $("ann-comment").value, by: $("ann-by").value};
+  try { localStorage.setItem("usersim.by", ann.by); } catch (e) {}
+  try { const r = await api("/api/annotate", {run: CUR.run, file: CUR.file, annotation: ann}); $("ann-msg").textContent = "saved " + r.time; CUR.data.annotation = r; await loadRun(); }
+  catch (e) { $("ann-msg").textContent = e.message; }
+}
+
+// ── setup ─────────────────────────────────────────────────────────────────
+async function renderSetup() {
+  STATE = await api("/api/state");
+  $("setup-checks").querySelector("tbody").innerHTML = STATE.checks.map(c => `<tr><td class="${c.ok ? "good" : "bad"}">${c.ok ? "OK" : "MISSING"}</td><td>${esc(c.what)}</td><td class="help">${esc(c.detail)}</td></tr>`).join("");
+  $("setup-config").querySelector("tbody").innerHTML = Object.entries(STATE.config).map(([k, v]) => `<tr><td>${esc(k)}</td><td><code>${esc(v)}</code></td></tr>`).join("");
+  const u = await api("/api/user"); $("user-json").value = JSON.stringify(u, null, 2);
+}
+async function saveUser() {
+  try { const r = await api("/api/user", JSON.parse($("user-json").value)); $("user-msg").textContent = "saved: " + r.name; await loadScenarios(); }
+  catch (e) { $("user-msg").textContent = e.message; }
+}
+boot();
+</script>
+</body>
+</html>

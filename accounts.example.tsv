@@ -1,0 +1,4 @@
+# Copy to accounts.tsv (never committed). One test account per line: email <TAB> password.
+# These are password accounts on dev.hark.com (eval.party); ask Eric for a block of them.
+tester-001@eval.party	change-me
+tester-002@eval.party	change-me

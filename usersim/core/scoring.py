@@ -1,0 +1,23 @@
+"""Optional scoring of a finished conversation. A scorer takes the Conversation and the
+(rendered) Scenario and returns a dict with at least ``verdict`` (PASS / FAIL / UNREADABLE / -)
+and ``lines`` (what to print in the report). Implementations live under ``usersim/scorers``."""
+from __future__ import annotations
+
+import importlib
+from typing import Protocol
+
+from usersim.core.config import Config
+from usersim.core.harness import Conversation
+from usersim.core.scenario import Scenario
+
+NAMES = {"judge": "usersim.scorers.judge", "none": "usersim.scorers.none"}
+
+
+class Scorer(Protocol):
+    def score(self, conv: Conversation, sc: Scenario) -> dict: ...
+
+
+def make(name: str, cfg: Config, key: str = "", out=print, limits=None) -> Scorer:
+    if name not in NAMES:
+        raise ValueError(f"unknown scorer {name!r}; have: {', '.join(NAMES)}")
+    return importlib.import_module(NAMES[name]).create(cfg, key, out, limits=limits)

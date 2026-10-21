@@ -1,0 +1,30 @@
+{
+  "facts": {
+    "name": "Alex Morgan",
+    "age": 34,
+    "job": "project coordinator at a mid-size logistics company",
+    "home": "Sunnyvale, CA",
+    "car": "2019 Honda Civic",
+    "household": "lives with partner Sam; no kids; a cat named Miso",
+    "food": "likes Thai, Mexican and ramen; partner is vegetarian; no shellfish",
+    "travel": "prefers direct flights, carry-on only, window seat; SFO is the home airport",
+    "entertainment": "watches sci-fi and comedies, plays casual board games on weekends",
+    "health": "runs occasionally, mild pollen allergy in spring",
+    "subscriptions": "Netflix, Spotify, a gym membership used about twice a week",
+    "habits": "coffee at 8am, in bed by 11pm, checks messages at lunch",
+    "routine": "office Tue-Thu, home Mon and Fri; gym Mon and Wed evenings",
+    "calendar": "Mon 7pm gym; Tue 10am team standup, 6pm dinner with Sam's parents; Wed 7pm gym; Thu 3pm dentist; Fri free; Sat 10am farmers market; Sun free. Next week: Mon 7pm gym; Tue 10am standup; Wed 1pm offsite all afternoon; Thu free; Fri 6pm friend's birthday drinks; Sat free; Sun free"
+  },
+  "style": "short, casual messages; lowercase; no greetings; one thing at a time; says 'ok' when satisfied",
+  "limits": [
+    "never signs in to any website or app for the assistant, never shares a password",
+    "never gives a card number, bank details or an ID number in the chat",
+    "never confirms a purchase, booking or a message to other people without being asked first"
+  ],
+  "profile": {
+    "name": "Alex Morgan",
+    "home": "Sunnyvale, CA",
+    "family": "partner Sam; cat Miso",
+    "hobbies": "running, board games, farmers market on Saturdays"
+  }
+}
