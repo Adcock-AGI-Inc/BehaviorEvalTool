@@ -390,7 +390,7 @@ async function startRun() {
 async function loadRuns() {
   RUNS = await api("/api/runs");
   $("runs-table").querySelector("tbody").innerHTML = RUNS.map(r => `<tr class="row" onclick="showLog('${esc(r.tag)}')"><td>${esc(r.name)}<div class="help">${esc(r.modified)}</div></td>
-    <td class="help">${esc((r.profiles || []).join(", "))}</td><td class="${r.status === "running" ? "warn" : ""}">${esc(r.status)}</td><td>${r.conversations}</td>
+    <td class="help">${esc((r.profiles || []).slice(0, 3).join(", "))}${(r.profiles || []).length > 3 ? ` +${r.profiles.length - 3}` : ""}</td><td class="${r.status === "running" ? "warn" : ""}">${esc(r.status)}</td><td>${r.conversations}</td>
     <td>${Object.entries(r.verdicts).map(([k, v]) => `<span class="pill ${esc(k)}">${esc(k)} ${v}</span>`).join("")}</td><td>${r.annotated}</td>
     <td>${r.status === "running" ? `<button class="btn danger" onclick="event.stopPropagation();stopRun('${esc(r.tag)}')">stop</button>` : ""}
         ${r.conversations ? `<button class="btn" onclick="event.stopPropagation();openResults('${esc(r.name)}')">results</button>` : ""}</td></tr>`).join("") || '<tr><td colspan="7" class="help">no runs yet</td></tr>';
