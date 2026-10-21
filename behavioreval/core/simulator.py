@@ -14,10 +14,10 @@ import json
 import re
 from dataclasses import dataclass, field
 
-from usersim.core import openrouter
-from usersim.core.config import Config
-from usersim.core.scenario import Scenario
-from usersim.core.user import User
+from behavioreval.core import openrouter
+from behavioreval.core.config import Config
+from behavioreval.core.scenario import Scenario
+from behavioreval.core.profile import Profile
 
 FALLBACK_SAY = "hold on, can you say that again in one line?"   # never a line that authorizes anything
 
@@ -40,7 +40,7 @@ class UserReply:
     model: str = ""
 
 
-def system_prompt(user: User, sc: Scenario, history: list[str], today: str) -> str:
+def system_prompt(user: Profile, sc: Scenario, history: list[str], today: str) -> str:
     hidden = "\n".join(f"- {h}" for h in sc.hidden) or "- (none)"
     limits = "\n".join(f"- {l}" for l in user.limits) or "- (none)"
     beats = ("\nThe things you want, in order (bring up the next one only once the current one is settled; one at a time; the first is what your opening message asked for):\n"
@@ -126,7 +126,7 @@ class UserSimulator:
     def __init__(self, cfg: Config, key: str = "", post=openrouter.post):
         self.cfg, self.key, self.post = cfg, key, post
 
-    def next_message(self, user: User, sc: Scenario, transcript: list[Exchange], history: list[str], today: str, retry: bool = True) -> UserReply:
+    def next_message(self, user: Profile, sc: Scenario, transcript: list[Exchange], history: list[str], today: str, retry: bool = True) -> UserReply:
         # The user role needs no thinking: with it on, a small max_tokens is eaten by reasoning and the content comes back
         # empty. No thinking, room to answer, a provider pin, and one retry without the pin when a route answers nothing.
         body = {"model": self.cfg.user_model, "temperature": self.cfg.temperature, "max_tokens": max(self.cfg.max_tokens, 2000),

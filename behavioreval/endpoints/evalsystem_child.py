@@ -1,6 +1,6 @@
 """One assistant conversation as one account, driven line by line, from inside mvp's
 eval_system uv project (``uv run python <this file>``, cwd = services/eval_system).
-Started by usersim.endpoints.evalsystem. Why a child: eval_system's TextEvalClient follows
+Started by behavioreval.endpoints.evalsystem. Why a child: eval_system's TextEvalClient follows
 the conversation's SSE stream, so it knows when a run ended and which tools it called
 without the trajectory viewer (which indexes only a few configured accounts).
 
@@ -52,7 +52,7 @@ async def amain(argv=None) -> int:
     def emit(obj: dict) -> None:
         print(json.dumps(obj, ensure_ascii=False), flush=True)
 
-    async with TextEvalClient(api_url=env.web_url, session_cookie=cookie, account_email=a.email, scenario_name="usersim",
+    async with TextEvalClient(api_url=env.web_url, session_cookie=cookie, account_email=a.email, scenario_name="behavioreval",
                               response_timeout=a.timeout, model=a.model or None, model_provider=a.provider or None) as client:
         await client.rotate_conversation()   # a fresh main conversation (local mvp patch); memory is per account and stays
         note = (f"model={a.model}" + (f" modelProvider={a.provider}" if a.provider else "") + " on every message") if a.model else "endpoint default model"

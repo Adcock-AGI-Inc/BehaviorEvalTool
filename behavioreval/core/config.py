@@ -1,5 +1,5 @@
 """The outer layer: every knob of a run in one place, read in this order —
-``config.json`` (repo root) → ``USERSIM_<KEY>`` environment variables → command-line overrides.
+``config.json`` (repo root) → ``BEHAVIOREVAL_<KEY>`` environment variables → command-line overrides.
 Nothing else in the package reads a file or the environment for a parameter."""
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import os
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent      # the repository root (config.json, user.json, scenarios/ live here)
+ROOT = Path(__file__).resolve().parent.parent.parent      # the repository root (config.json, profiles/, scenarios/ live here)
 CONFIG_FILE = ROOT / "config.json"
 
 
@@ -34,22 +34,24 @@ class Config:
     judge_reasoning_tokens: int = 3000   # thinking budget for the judge (OpenRouter `reasoning.max_tokens`); 0 = disabled
     seed_profile: bool = True          # write the user's profile into the account before the opening
     history_in_briefing: bool = True   # tell the user model what this account asked for before
-    data_root: Path = Path("~/usersim-data")
+    data_root: Path = Path("~/behavioreval-data")
     mvp_dir: Path = Path("~/Documents/mvp")
     accounts_file: Path = Path("accounts.tsv")     # email<TAB>password per line (never committed)
-    user_file: Path = Path("user.json")            # the default simulated user
+    profiles_dir: Path = Path("profiles")          # one <id>.json per simulated person, with the accounts bound to them
+    profile: str = "default"                       # which profile runs when none is chosen
+    columns: list = field(default_factory=lambda: [{"id": "default", "label": "Product default model"}])   # the assistant columns the UI offers
     scenarios_dir: Path = Path("scenarios")
     session_cache: Path = Path("~/.cache/hark-eval-clear")
     secrets_file: Path = Path(".env")              # KEY=VALUE lines; only SECRET_KEYS are read from it
     ui_port: int = 8765
-    source: dict = field(default_factory=dict)   # where each value came from, for `usersim config`
+    source: dict = field(default_factory=dict)   # where each value came from, for `behavioreval config`
 
     @property
     def eval_dir(self) -> Path:
         return self.mvp_dir / "services" / "eval_system"
 
 
-_PATHS = {"data_root", "mvp_dir", "accounts_file", "user_file", "scenarios_dir", "session_cache", "secrets_file"}
+_PATHS = {"data_root", "mvp_dir", "accounts_file", "profiles_dir", "scenarios_dir", "session_cache", "secrets_file"}
 SECRET_KEYS = ("CF_ACCESS_CLIENT_ID", "CF_ACCESS_CLIENT_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "OPENROUTER_API_KEY")
 _BOOLS = {"seed_profile", "history_in_briefing"}
 
@@ -61,6 +63,10 @@ def _coerce(key: str, value):
     if key in _BOOLS:
         return value if isinstance(value, bool) else str(value).strip().lower() in ("1", "true", "yes", "on")
     kind = {f.name: f.type for f in fields(Config)}[key]
+    if kind == "list":
+        if isinstance(value, str):
+            value = [{"id": v.strip(), "label": v.strip()} for v in value.split(",") if v.strip()]
+        return [x if isinstance(x, dict) else {"id": str(x), "label": str(x)} for x in (value or [])]
     if kind == "int":
         return int(value)
     if kind == "float":
@@ -69,7 +75,7 @@ def _coerce(key: str, value):
 
 
 def load(path: Path = CONFIG_FILE, environ=None, overrides: dict | None = None) -> Config:
-    """File, then USERSIM_<KEY> env vars, then overrides whose value is not None."""
+    """File, then BEHAVIOREVAL_<KEY> env vars, then overrides whose value is not None."""
     environ = os.environ if environ is None else environ
     cfg = Config()
     known = {f.name for f in fields(Config)} - {"source"}
@@ -83,7 +89,7 @@ def load(path: Path = CONFIG_FILE, environ=None, overrides: dict | None = None) 
             setattr(cfg, k, _coerce(k, v))
             cfg.source[k] = path.name
     for k in known:
-        v = environ.get("USERSIM_" + k.upper())
+        v = environ.get("BEHAVIOREVAL_" + k.upper())
         if v is not None and v != "":
             setattr(cfg, k, _coerce(k, v))
             cfg.source[k] = "env"

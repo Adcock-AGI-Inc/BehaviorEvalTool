@@ -6,12 +6,12 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from usersim.core import config, ledger, records, scenario, user as user_mod
-from usersim.core.harness import run
-from usersim.core.simulator import Exchange, UserSimulator, parse, system_prompt
-from usersim.endpoints.fake import FakeEndpoint
+from behavioreval.core import config, ledger, records, scenario, profile as profile_mod
+from behavioreval.core.harness import run
+from behavioreval.core.simulator import Exchange, UserSimulator, parse, system_prompt
+from behavioreval.endpoints.fake import FakeEndpoint
 
-ALEX = user_mod.User({"name": "Alex Morgan", "home": "Sunnyvale, CA", "car": "2019 Honda Civic"}, "short, casual", ["never signs in"], {"name": "Alex Morgan"})
+ALEX = profile_mod.Profile("alex", {"name": "Alex Morgan", "home": "Sunnyvale, CA", "car": "2019 Honda Civic"}, "short, casual", ["never signs in"], {"name": "Alex Morgan"})
 MECH = {"id": "local/01_mechanic", "opening": "find me a mechanic", "situation": "the {car} has a cracked mirror", "goal": "a shop near {home}",
         "hidden": ["lives in {home}", "drives a {car}"], "done_when": "a shop near {home} is named", "scoring": {"criteria": ["Today is {{today}}. Near {home}."]}}
 
@@ -26,7 +26,7 @@ class ConfigTests(unittest.TestCase):
     def test_file_env_cli_precedence_and_coercion(self):
         f = Path(tempfile.mkdtemp()) / "config.json"
         f.write_text(json.dumps({"max_turns": 4, "lane": "hark-slot4", "data_root": "~/x"}))
-        cfg = config.load(f, {"USERSIM_MAX_TURNS": "3", "USERSIM_SEED_PROFILE": "false"}, {"temperature": 0.2, "lane": None})
+        cfg = config.load(f, {"BEHAVIOREVAL_MAX_TURNS": "3", "BEHAVIOREVAL_SEED_PROFILE": "false"}, {"temperature": 0.2, "lane": None})
         self.assertEqual((cfg.max_turns, cfg.source["max_turns"], cfg.lane, cfg.seed_profile, cfg.temperature), (3, "env", "slot4", False, 0.2))
         self.assertTrue(cfg.data_root.is_absolute())
         self.assertEqual(config.load(f, {}, {"lane": "claude"}).lane, "")
@@ -40,11 +40,13 @@ class ConfigTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             config.load(f, {})
 
-    def test_the_checked_in_config_and_user_load(self):
+    def test_the_checked_in_config_and_default_profile_load(self):
         cfg = config.load(environ={})
-        self.assertEqual((cfg.max_turns, cfg.endpoint), (5, "evalsystem"))
-        u = user_mod.load(cfg.user_file)
-        self.assertTrue(u.has("home") and u.limits and u.style)
+        self.assertEqual((cfg.max_turns, cfg.endpoint, cfg.profile), (5, "evalsystem", "default"))
+        self.assertEqual([c["id"] for c in cfg.columns][:1], ["default"])
+        self.assertEqual(config.load(None, {"BEHAVIOREVAL_COLUMNS": "default, slot7"}).columns[1], {"id": "slot7", "label": "slot7"})
+        u = profile_mod.load(cfg.profiles_dir, "default")
+        self.assertTrue(u.has("home") and u.limits and u.style and u.id == "default")
 
     def test_column_specs(self):
         cfg = config.load(environ={})
@@ -67,10 +69,10 @@ class UserTests(unittest.TestCase):
         self.assertEqual((u.facts["car"], u.facts["home"], u.style, u.limits), ("2016 Subaru Outback", "Sunnyvale, CA", "terse", ["never signs in"]))
         self.assertIs(ALEX.with_overrides({}), ALEX)
         with self.assertRaises(ValueError) as cm:
-            user_mod.from_dict({"facts": {"name": "X"}, "profile": {"car": "y"}}, "t")
+            profile_mod.from_dict({"id": "x", "facts": {"name": "X"}, "profile": {"car": "y"}}, "t")
         self.assertIn("car", str(cm.exception))
         with self.assertRaises(ValueError):
-            user_mod.from_dict({"facts": {}}, "t")
+            profile_mod.from_dict({"id": "x", "facts": {}}, "t")
 
 
 class ScenarioTests(unittest.TestCase):
@@ -84,7 +86,7 @@ class ScenarioTests(unittest.TestCase):
     def test_scenario_user_block_overrides_the_default_user(self):
         sc = scenario.from_dict({**MECH, "user": {"car": "2016 Subaru Outback"}}, "t")
         self.assertEqual(scenario.render(sc, ALEX).hidden[1], "drives a 2016 Subaru Outback")
-        self.assertEqual(scenario.user_for(sc, ALEX).facts["car"], "2016 Subaru Outback")
+        self.assertEqual(scenario.profile_for(sc, ALEX).facts["car"], "2016 Subaru Outback")
 
     def test_lint(self):
         sc = scenario.from_dict(MECH, "t")
@@ -112,7 +114,7 @@ class ScenarioTests(unittest.TestCase):
 
     def test_checked_in_scenarios_lint_clean(self):
         cfg = config.load(environ={})
-        u = user_mod.load(cfg.user_file)
+        u = profile_mod.load(cfg.profiles_dir, "default")
         self.assertTrue(scenario.sets(cfg.scenarios_dir))
         for s in scenario.sets(cfg.scenarios_dir):
             self.assertEqual(scenario.lint_all(scenario.resolve(s, directory=cfg.scenarios_dir), u), [], s)
@@ -187,7 +189,7 @@ class HarnessTests(unittest.TestCase):
         ep = FakeEndpoint([("which city?", "awaiting_input"), ("Joe's Auto, 123 Main", "end_turn")])
         conv = self.go(ep, [{"say": "sunnyvale", "done": False, "why": "asked"}, {"say": "", "done": True, "why": "named"}])
         self.assertEqual(ep.sent, ["find me a mechanic", "sunnyvale"])
-        self.assertEqual((conv.stop, conv.user_turns, len(conv.turns), conv.user), ("done", 2, 3, "Alex Morgan"))
+        self.assertEqual((conv.stop, conv.user_turns, len(conv.turns), conv.user, conv.profile), ("done", 2, 3, "Alex Morgan", "alex"))
         self.assertEqual(ep.opened["profile"], {"name": "Alex Morgan"})
 
     def test_closing_line_is_sent_then_stops(self):
@@ -196,7 +198,7 @@ class HarnessTests(unittest.TestCase):
         self.assertEqual((ep.sent, conv.stop, conv.turns[1].assistant), (["find me a mechanic", "ok book it"], "done", "booked"))
 
     def test_turn_cap_timeout_and_repeated_errors(self):
-        from usersim.core.endpoint import AssistantTurn
+        from behavioreval.core.endpoint import AssistantTurn
         conv = self.go(FakeEndpoint([("a", "end_turn"), ("b", "end_turn"), ("c", "end_turn")]), [{"say": "more", "done": False, "why": "x"}] * 2)
         self.assertEqual((conv.stop, conv.user_turns), ("max_turns", 3))
         self.assertEqual(self.go(FakeEndpoint([]), []).stop, "timeout")
@@ -230,26 +232,28 @@ class LedgerAndPlanTests(unittest.TestCase):
         self.assertEqual(ledger.least_used_first(led, ["a@x", "b@x"]), ["b@x", "a@x"])
 
     def test_plan_spreads_jobs_over_accounts_and_lints_first(self):
-        from usersim.core.cli import plan_jobs
+        from behavioreval.core.cli import plan_jobs
         cfg = config.load(environ={})
         scs = [scenario.from_dict({**MECH, "id": f"t/{i}"}, "t") for i in range(4)]
-        jobs = plan_jobs(cfg, scs, ["default", "slot20"], 1, ["a@x", "b@x", "c@x"], {})
+        jobs = plan_jobs(cfg, scs, ["default", "slot20"], 1, ["a@x", "b@x", "c@x"], {}, ALEX)
         self.assertEqual(len(jobs), 8)
         self.assertEqual({j[2] for j in jobs}, {"a@x", "b@x", "c@x"})
-        self.assertEqual(jobs[0][0].goal, "a shop near " + user_mod.load(cfg.user_file).facts["home"])
+        self.assertEqual((jobs[0][0].goal, jobs[0][1].id), ("a shop near Sunnyvale, CA", "alex"))
         with self.assertRaises(ValueError):
-            plan_jobs(cfg, [scenario.from_dict({**MECH, "goal": "{office}"}, "t")], ["default"], 1, ["a@x"], {})
+            plan_jobs(cfg, [scenario.from_dict({**MECH, "goal": "{office}"}, "t")], ["default"], 1, ["a@x"], {}, ALEX)
 
 
 class UITests(unittest.TestCase):
     def setUp(self):
-        from usersim.ui.server import make_server
+        from behavioreval.ui.server import make_server
         self.tmp = Path(tempfile.mkdtemp())
         (self.tmp / "scenarios").mkdir()
         (self.tmp / "scenarios" / "local.jsonl").write_text(json.dumps(MECH) + "\n")
-        (self.tmp / "user.json").write_text(json.dumps({"facts": ALEX.facts, "style": ALEX.style, "limits": ALEX.limits, "profile": ALEX.profile}))
-        self.cfg = config.load(None, {}, {"data_root": str(self.tmp / "data"), "scenarios_dir": str(self.tmp / "scenarios"), "user_file": str(self.tmp / "user.json"),
-                                           "accounts_file": str(self.tmp / "none.tsv"), "secrets_file": str(self.tmp / "none.env")})
+        (self.tmp / "profiles").mkdir()
+        (self.tmp / "profiles" / "default.json").write_text(json.dumps({"id": "default", "facts": ALEX.facts, "style": ALEX.style, "limits": ALEX.limits, "profile": ALEX.profile}))
+        (self.tmp / "accounts.tsv").write_text("a1@x\tpw\na2@x\tpw\nfree@x\tpw\n")
+        self.cfg = config.load(None, {}, {"data_root": str(self.tmp / "data"), "scenarios_dir": str(self.tmp / "scenarios"), "profiles_dir": str(self.tmp / "profiles"),
+                                           "accounts_file": str(self.tmp / "accounts.tsv"), "secrets_file": str(self.tmp / "none.env")})
         self.srv = make_server(self.cfg, 0)
         threading.Thread(target=self.srv.serve_forever, daemon=True).start()
         self.base = f"http://127.0.0.1:{self.srv.server_address[1]}"
@@ -264,10 +268,19 @@ class UITests(unittest.TestCase):
 
     def test_page_scenarios_save_runs_annotate_export(self):
         with urllib.request.urlopen(self.base + "/") as r:
-            self.assertIn(b"usersim", r.read())
+            self.assertIn(b"Behavior Eval Tool", r.read())
         st = self.call("/api/state")
-        self.assertEqual((st["user"], st["sets"]), ("Alex Morgan", ["local"]))
+        self.assertEqual((st["default_profile"], st["sets"], [p["id"] for p in st["profiles"]]), ("default", ["local"], ["default"]))
         self.assertTrue(any(not c["ok"] for c in st["checks"]))
+        # profiles: bind accounts, exclusivity, usable accounts of an unbound profile
+        r = self.call("/api/profiles", {"id": "anderson", "facts": {"name": "Anderson", "home": "Oakland, CA", "car": "2016 Subaru"}, "accounts": ["a1@x", "a2@x"]})
+        self.assertEqual((r["id"], r["problems"]), ("anderson", []))
+        with self.assertRaises(urllib.error.HTTPError):
+            self.call("/api/profiles", {"id": "ben", "facts": {"name": "Ben", "home": "x"}, "accounts": ["a1@x"]})   # a1 belongs to anderson
+        rows = {p["id"]: p for p in self.call("/api/profiles")}
+        self.assertEqual((rows["anderson"]["usable_accounts"], rows["default"]["usable_accounts"]), (["a1@x", "a2@x"], ["free@x"]))
+        self.assertEqual({a["email"]: a["profile"] for a in self.call("/api/state")["accounts"]}, {"a1@x": "anderson", "a2@x": "anderson", "free@x": ""})
+        self.assertEqual(self.call("/api/scenarios?profile=anderson")[0]["problems"], [])
         scs = self.call("/api/scenarios")
         self.assertEqual((scs[0]["id"], scs[0]["problems"]), ("local/01_mechanic", []))
         r = self.call("/api/scenarios", {"set": "local", "scenario": {**MECH, "id": "local/02_new", "goal": "near {office}"}})
@@ -277,16 +290,18 @@ class UITests(unittest.TestCase):
             self.call("/api/scenarios", {"set": "other", "scenario": {**MECH, "id": "local/03"}})   # id must start with the set
         pv = self.call("/api/preview", {"id": "local/01_mechanic", "assistant": [], "call_model": False})
         self.assertIn("lives in Sunnyvale, CA", pv["system_prompt"])
+        pv = self.call("/api/preview", {"id": "local/01_mechanic", "assistant": [], "call_model": False, "profile": "anderson"})
+        self.assertIn("lives in Oakland, CA", pv["system_prompt"])
         self.assertEqual(self.call("/api/runs"), [])
         # a finished run on disk → results, annotation, export
         rd = self.cfg.data_root / "runs" / "20261021-1200-test"
         rd.mkdir(parents=True)
-        conv = {"scenario": "local/01_mechanic", "user": "Alex Morgan", "account": "a@x", "lane": "", "column": "default", "tags": [], "conversation_id": "c1",
+        conv = {"scenario": "local/01_mechanic", "user": "Alex Morgan", "account": "a@x", "profile": "default", "lane": "", "column": "default", "tags": [], "conversation_id": "c1",
                 "turns": [{"n": 1, "user": "find me a mechanic", "assistant": "Joe's", "reason": "end_turn", "calls": [], "duration_s": 2, "error": "", "sim": {}}],
                 "stop": "done", "started": "", "ended": "", "note": "", "score": {"verdict": "PASS", "judge": [{"success": True, "score": 0.9}]}}
         (rd / "default__a__local_01_mechanic.conversation.json").write_text(json.dumps(conv))
         runs = self.call("/api/runs")
-        self.assertEqual((runs[0]["name"], runs[0]["verdicts"]), ("20261021-1200-test", {"PASS": 1}))
+        self.assertEqual((runs[0]["name"], runs[0]["verdicts"], runs[0]["profiles"]), ("20261021-1200-test", {"PASS": 1}, ["default"]))
         rows = self.call("/api/run?name=20261021-1200-test")
         self.assertEqual((rows[0]["verdict"], rows[0]["score"], rows[0]["annotation"]), ("PASS", 0.9, {}))
         ann = self.call("/api/annotate", {"run": "20261021-1200-test", "file": rows[0]["file"], "annotation": {"verdict": "FAIL", "issues": ["fabricated specifics"], "comment": "no such shop", "by": "anderson"}})

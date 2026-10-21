@@ -10,7 +10,7 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
-from usersim.core.harness import Conversation, Turn
+from behavioreval.core.harness import Conversation, Turn
 
 
 def run_dir(data_root: Path, tag: str) -> Path:
@@ -35,7 +35,7 @@ def save_conversation(d: Path, conv: Conversation, score: dict | None = None, at
 
 def load_conversation(path: Path) -> tuple[Conversation, dict]:
     d = json.loads(path.read_text(encoding="utf-8"))
-    conv = Conversation(**{k: d.get(k, "") for k in ("scenario", "user", "account", "lane", "column", "conversation_id", "stop", "started", "ended", "note")})
+    conv = Conversation(**{k: d.get(k, "") for k in ("scenario", "user", "account", "profile", "lane", "column", "conversation_id", "stop", "started", "ended", "note")})
     conv.tags = list(d.get("tags") or [])
     conv.turns = [Turn(**{k: t.get(k) for k in ("n", "user", "assistant", "reason", "calls", "duration_s", "error", "sim")}) for t in d.get("turns") or []]
     return conv, d
@@ -46,7 +46,7 @@ def _verdict(score: dict) -> str:
 
 
 def write_report(d: Path, rows: list[tuple[Conversation, dict]], cfg_summary: dict) -> Path:
-    lines = [f"# usersim run {d.name}", "", "Settings: " + ", ".join(f"{k}={v}" for k, v in cfg_summary.items()), ""]
+    lines = [f"# behavioreval run {d.name}", "", "Settings: " + ", ".join(f"{k}={v}" for k, v in cfg_summary.items()), ""]
     cols = sorted({c.column or "default" for c, _ in rows})
     if rows:
         lines += ["| column | conversations | done | max_turns | timeout | error | PASS | FAIL | pass rate |", "|---|---|---|---|---|---|---|---|---|"]

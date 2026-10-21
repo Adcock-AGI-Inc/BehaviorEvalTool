@@ -8,8 +8,8 @@ import os
 import time
 import urllib.request
 
-from usersim.core.config import Config
-from usersim.core.endpoint import AssistantTurn
+from behavioreval.core.config import Config
+from behavioreval.core.endpoint import AssistantTurn
 
 
 class OpenAIChatEndpoint:
@@ -19,7 +19,7 @@ class OpenAIChatEndpoint:
         self.cfg, self.out = cfg, out
         self.url = cfg.endpoint_url.rstrip("/") + "/chat/completions"
         self.model = cfg.lane or "default"
-        self.key = os.environ.get("USERSIM_ENDPOINT_KEY", "")
+        self.key = os.environ.get("BEHAVIOREVAL_ENDPOINT_KEY", "")
         self.messages: list[dict] = [{"role": "system", "content": system}] if system else []
 
     def open(self, account, lane, title, profile) -> str:

@@ -1,16 +1,16 @@
 """Optional scoring of a finished conversation. A scorer takes the Conversation and the
 (rendered) Scenario and returns a dict with at least ``verdict`` (PASS / FAIL / UNREADABLE / -)
-and ``lines`` (what to print in the report). Implementations live under ``usersim/scorers``."""
+and ``lines`` (what to print in the report). Implementations live under ``behavioreval/scorers``."""
 from __future__ import annotations
 
 import importlib
 from typing import Protocol
 
-from usersim.core.config import Config
-from usersim.core.harness import Conversation
-from usersim.core.scenario import Scenario
+from behavioreval.core.config import Config
+from behavioreval.core.harness import Conversation
+from behavioreval.core.scenario import Scenario
 
-NAMES = {"judge": "usersim.scorers.judge", "none": "usersim.scorers.none"}
+NAMES = {"judge": "behavioreval.scorers.judge", "none": "behavioreval.scorers.none"}
 
 
 class Scorer(Protocol):

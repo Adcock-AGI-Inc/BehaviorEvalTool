@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from usersim.core.user import User
+from behavioreval.core.profile import Profile
 
 PLACEHOLDER = re.compile(r"(?<!\{)\{([a-z_][a-z0-9_]*)\}(?!\})")   # {home}; not {{today}} (a judge placeholder)
 DEFAULT_REVEAL = "only when the assistant asks, or when it clearly cannot proceed without it; one fact per reply"
@@ -28,7 +28,7 @@ FIELD_HELP = {   # what each field means, for the UI form and the README
     "max_turns": "user messages in this conversation (overrides config.json)",
     "tags": "free labels for filtering (local, calendar, shopping, …)",
     "leaves": "what running it creates on the account (calendar entries, reminders, pages) — tells the cleanup step what to undo",
-    "user": "facts for this scenario that differ from user.json, e.g. {\"car\": \"2016 Subaru Outback\"}",
+    "user": "facts for this scenario that differ from the profile, e.g. {\"car\": \"2016 Subaru Outback\"}",
     "scoring": "optional: extra judge criteria, {\"criteria\": [\"...\"]}",
 }
 
@@ -186,13 +186,13 @@ def render_text(text: str, facts: dict) -> str:
     return PLACEHOLDER.sub(lambda m: str(facts[m.group(1)]) if m.group(1) in facts else m.group(0), text)
 
 
-def user_for(sc: Scenario, user: User) -> User:
+def profile_for(sc: Scenario, user: Profile) -> Profile:
     return user.with_overrides(sc.user)
 
 
-def render(sc: Scenario, user: User) -> Scenario:
+def render(sc: Scenario, user: Profile) -> Scenario:
     """The scenario as this user lives it: every placeholder filled (the scenario's own user block applied first)."""
-    facts = user_for(sc, user).facts
+    facts = profile_for(sc, user).facts
     r = lambda t: render_text(t, facts)   # noqa: E731
     scoring = json.loads(render_text(json.dumps(sc.scoring, ensure_ascii=False), facts)) if sc.scoring else {}
     return Scenario(id=sc.id, opening=r(sc.opening), situation=r(sc.situation), goal=r(sc.goal), hidden=[r(h) for h in sc.hidden],
@@ -200,13 +200,13 @@ def render(sc: Scenario, user: User) -> Scenario:
                     tags=sc.tags, leaves=sc.leaves, user=sc.user)
 
 
-def lint(sc: Scenario, user: User) -> list[str]:
+def lint(sc: Scenario, user: Profile) -> list[str]:
     """Why this scenario cannot be lived by this user. Empty = fine."""
     problems: list[str] = []
-    u = user_for(sc, user)
+    u = profile_for(sc, user)
     unknown = sorted(p for p in sc.placeholders() if not u.has(p) and not p.startswith(RUNTIME_PREFIX))
     if unknown:
-        problems.append("placeholder(s) with no fact in user.json or the scenario's user block: " + ", ".join("{" + p + "}" for p in unknown))
+        problems.append("placeholder(s) with no fact in the profile or the scenario's user block: " + ", ".join("{" + p + "}" for p in unknown))
     if not sc.done_when:
         problems.append("done_when is empty: the judge has no hard requirement and the user model does not know when to stop")
     if sc.max_turns is not None and sc.beats and sc.max_turns < len(sc.beats):
@@ -214,5 +214,5 @@ def lint(sc: Scenario, user: User) -> list[str]:
     return problems
 
 
-def lint_all(scenarios: list[Scenario], user: User) -> list[tuple[str, str]]:
+def lint_all(scenarios: list[Scenario], user: Profile) -> list[tuple[str, str]]:
     return [(sc.id, p) for sc in scenarios for p in lint(sc, user)]

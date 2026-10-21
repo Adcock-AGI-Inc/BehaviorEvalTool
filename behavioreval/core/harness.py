@@ -6,11 +6,11 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 
-from usersim.core.config import Config, column
-from usersim.core.endpoint import AssistantTurn, Endpoint
-from usersim.core.scenario import Scenario
-from usersim.core.simulator import Exchange, UserReply, UserSimulator
-from usersim.core.user import User
+from behavioreval.core.config import Config, column
+from behavioreval.core.endpoint import AssistantTurn, Endpoint
+from behavioreval.core.scenario import Scenario
+from behavioreval.core.simulator import Exchange, UserReply, UserSimulator
+from behavioreval.core.profile import Profile
 
 
 @dataclass
@@ -30,7 +30,8 @@ class Conversation:
     scenario: str
     user: str                                       # the simulated user's name
     account: str
-    lane: str
+    profile: str = ""                               # the profile id the user came from
+    lane: str = ""
     column: str = ""                                # the assistant column: slot20 / claude-opus-5-5 / default
     tags: list[str] = field(default_factory=list)
     conversation_id: str = ""
@@ -52,15 +53,15 @@ def _sim_fields(r: UserReply) -> dict:
     return {"why": r.why, "raw": r.raw, "usage": r.usage, "unreadable": r.unreadable, "model": r.model}
 
 
-def run(sc: Scenario, user: User, account: str, sim: UserSimulator, endpoint: Endpoint, cfg: Config,
+def run(sc: Scenario, user: Profile, account: str, sim: UserSimulator, endpoint: Endpoint, cfg: Config,
         history: list[str] | None = None, out=print, today: str | None = None) -> Conversation:
     """``sc`` must already be rendered for ``user`` (scenario.render); ``user`` is the scenario's user (scenario.user_for)."""
     today = today or time.strftime("%Y-%m-%d")
     max_turns = sc.max_turns or cfg.max_turns
     label, _, _ = column(cfg)
-    conv = Conversation(scenario=sc.id, user=user.name, account=account, lane=cfg.lane, column=label, tags=list(sc.tags), started=time.strftime("%Y-%m-%d %H:%M:%S"))
+    conv = Conversation(scenario=sc.id, user=user.name, account=account, profile=user.id, lane=cfg.lane, column=label, tags=list(sc.tags), started=time.strftime("%Y-%m-%d %H:%M:%S"))
     profile = user.profile if cfg.seed_profile else {}
-    conv.conversation_id = endpoint.open(account, cfg.lane, f"usersim {sc.id} {conv.started}", profile)
+    conv.conversation_id = endpoint.open(account, cfg.lane, f"behavioreval {sc.id} {conv.started}", profile)
     out(f"  conversation {conv.conversation_id[:8]} as {user.name} ({account or 'no account'}) on {label}")
 
     def assistant(turn: Turn) -> bool:

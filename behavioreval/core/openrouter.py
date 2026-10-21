@@ -6,7 +6,7 @@ import os
 import urllib.request
 from pathlib import Path
 
-from usersim.core.config import ROOT
+from behavioreval.core.config import ROOT
 
 URL = "https://openrouter.ai/api/v1/chat/completions"
 ENV_FILES = (ROOT / ".env",)   # read only for OPENROUTER_API_KEY
@@ -15,14 +15,14 @@ ENV_FILES = (ROOT / ".env",)   # read only for OPENROUTER_API_KEY
 def post(body: dict, key: str, timeout_s: float = 240) -> dict:
     req = urllib.request.Request(URL, data=json.dumps(body).encode(), method="POST",
                                  headers={"Authorization": "Bearer " + key, "Content-Type": "application/json",
-                                          "HTTP-Referer": "https://github.com/Adcock-AGI-Inc/usersim", "X-Title": "usersim"})
+                                          "HTTP-Referer": "https://github.com/Adcock-AGI-Inc/behavioreval", "X-Title": "behavioreval"})
     with urllib.request.urlopen(req, timeout=timeout_s) as r:
         return json.loads(r.read())
 
 
 def key(environ=None, files: tuple[Path, ...] = ENV_FILES) -> str:
     environ = os.environ if environ is None else environ
-    for name in ("USERSIM_OPENROUTER_KEY", "OPENROUTER_API_KEY"):
+    for name in ("BEHAVIOREVAL_OPENROUTER_KEY", "OPENROUTER_API_KEY"):
         if environ.get(name):
             return environ[name].strip()
     for f in files:

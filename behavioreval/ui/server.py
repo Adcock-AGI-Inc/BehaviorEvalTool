@@ -1,7 +1,8 @@
 """The web UI: a small local server (stdlib only) over the same files the command line uses.
-Scenarios are edited in ``scenarios/*.jsonl``, runs are started as ``python3 -m usersim run``
-subprocesses, results are read from ``<data_root>/runs/<run>/`` and human annotations are
-written back into each ``*.conversation.json`` (``annotation`` field). Binds 127.0.0.1 only."""
+Profiles are ``profiles/*.json``, scenarios ``scenarios/*.jsonl``; runs are started as
+``python3 -m behavioreval run`` subprocesses; results are read from ``<data_root>/runs/<run>/``
+and human annotations are written back into each ``*.conversation.json`` (``annotation``).
+Binds 127.0.0.1 only."""
 from __future__ import annotations
 
 import csv
@@ -18,8 +19,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from usersim.core import config as config_mod, ledger, openrouter, scenario, user as user_mod
-from usersim.core.config import ROOT, Config
+from behavioreval.core import config as config_mod, ledger, openrouter, profile as profile_mod, scenario
+from behavioreval.core.config import ROOT, Config
 
 HERE = Path(__file__).resolve().parent
 SAFE = re.compile(r"^[A-Za-z0-9_.@-]+$")
@@ -33,12 +34,39 @@ class State:
         self.procs: dict[str, dict] = {}   # run tag → {proc, log, cmd, started}
         self.lock = threading.Lock()
 
-    # ── scenarios ────────────────────────────────────────────────────────
-    def user(self):
-        return user_mod.load(self.cfg.user_file)
+    # ── profiles ─────────────────────────────────────────────────────────
+    def profiles(self) -> dict[str, profile_mod.Profile]:
+        return profile_mod.load_all(self.cfg.profiles_dir)
 
-    def scenarios(self) -> list[dict]:
-        u = self.user()
+    def person(self, pid: str = "") -> profile_mod.Profile:
+        return profile_mod.load(self.cfg.profiles_dir, pid or self.cfg.profile)
+
+    def all_accounts(self) -> list[str]:
+        return list(config_mod.load_accounts(self.cfg.accounts_file))
+
+    def profile_rows(self) -> list[dict]:
+        profiles = self.profiles()
+        accounts = self.all_accounts()
+        out = []
+        for p in profiles.values():
+            d = p.to_dict()
+            d["name"], d["problems"] = p.name, profile_mod.lint(p, accounts, profiles)
+            d["usable_accounts"] = profile_mod.accounts_for(p, accounts, profiles)
+            out.append(d)
+        return out
+
+    def save_profile(self, d: dict) -> dict:
+        p = profile_mod.from_dict(d, "form")
+        profiles = self.profiles()
+        problems = profile_mod.lint(p, self.all_accounts(), profiles)
+        if any("already belongs" in x for x in problems):
+            raise ValueError("; ".join(x for x in problems if "already belongs" in x))
+        profile_mod.save(self.cfg.profiles_dir, p)
+        return {"id": p.id, "problems": problems}
+
+    # ── scenarios ────────────────────────────────────────────────────────
+    def scenarios(self, pid: str = "") -> list[dict]:
+        u = self.person(pid)
         out = []
         for s in scenario.sets(self.cfg.scenarios_dir):
             try:
@@ -52,11 +80,11 @@ class State:
                 out.append(d)
         return out
 
-    def save_scenario(self, set_name: str, d: dict) -> dict:
+    def save_scenario(self, set_name: str, d: dict, pid: str = "") -> dict:
         sc = scenario.from_dict(d, "form")
         if not sc.id.startswith(set_name + "/"):
             raise ValueError(f"the id must start with the set name: {set_name}/…")
-        problems = scenario.lint(sc, self.user())
+        problems = scenario.lint(sc, self.person(pid))
         scenario.save(self.cfg.scenarios_dir, set_name, sc)
         return {"id": sc.id, "problems": problems}
 
@@ -70,14 +98,16 @@ class State:
         return d
 
     def start_run(self, req: dict) -> dict:
-        tag = re.sub(r"[^A-Za-z0-9_.-]+", "-", str(req.get("tag") or "ui")).strip("-") or "ui"
-        tag = f"{tag}-{time.strftime('%H%M%S')}"
-        cmd = [sys.executable, "-m", "usersim", "run", "--yes", "--tag", tag, "--scenarios", "all"]
-        for sid in req.get("scenarios") or []:
-            cmd += ["--only", sid]
         if not req.get("scenarios"):
             raise ValueError("pick at least one scenario")
-        cols = [c for c in (req.get("columns") or []) if c.strip()]
+        pid = str(req.get("profile") or self.cfg.profile)
+        self.person(pid)   # must exist
+        tag = re.sub(r"[^A-Za-z0-9_.-]+", "-", str(req.get("tag") or pid)).strip("-") or pid
+        tag = f"{tag}-{time.strftime('%H%M%S')}"
+        cmd = [sys.executable, "-m", "behavioreval", "run", "--yes", "--tag", tag, "--scenarios", "all", "--profile", pid]
+        for sid in req["scenarios"]:
+            cmd += ["--only", sid]
+        cols = [c.strip() for c in (req.get("columns") or []) if c.strip()]
         if cols:
             cmd += ["--columns", ",".join(cols)]
         for a in req.get("accounts") or []:
@@ -108,6 +138,7 @@ class State:
         files = sorted(d.glob("*.conversation.json"))
         verdicts: dict[str, int] = {}
         cols: set[str] = set()
+        profiles: set[str] = set()
         annotated = 0
         for f in files:
             try:
@@ -117,20 +148,21 @@ class State:
             v = (j.get("score") or {}).get("verdict") or "-"
             verdicts[v] = verdicts.get(v, 0) + 1
             cols.add(j.get("column") or "default")
+            profiles.add(j.get("profile") or j.get("persona") or "")
             annotated += bool(j.get("annotation"))
         tag = d.name.split("-", 2)[2] if d.name.count("-") >= 2 else d.name
         live = self.procs.get(tag)
         status = "running" if live and live["proc"].poll() is None else ("finished" if live else "")
-        return {"name": d.name, "tag": tag, "conversations": len(files), "verdicts": verdicts, "columns": sorted(cols), "annotated": annotated,
-                "status": status, "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(d.stat().st_mtime)),
+        return {"name": d.name, "tag": tag, "conversations": len(files), "verdicts": verdicts, "columns": sorted(cols), "profiles": sorted(p for p in profiles if p),
+                "annotated": annotated, "status": status, "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(d.stat().st_mtime)),
                 "log": str(live["log"]) if live else str(self.logs_dir() / f"{tag}.log")}
 
     def runs(self) -> list[dict]:
         rd = self.runs_dir()
         out = [self._dir_summary(d) for d in sorted(rd.iterdir(), reverse=True) if d.is_dir()] if rd.exists() else []
-        for tag, p in self.procs.items():   # a run that has not written its directory yet
+        for tag, p in self.procs.items():
             if not any(r["tag"] == tag for r in out):
-                out.insert(0, {"name": "(starting)", "tag": tag, "conversations": 0, "verdicts": {}, "columns": [], "annotated": 0,
+                out.insert(0, {"name": "(starting)", "tag": tag, "conversations": 0, "verdicts": {}, "columns": [], "profiles": [], "annotated": 0,
                                "status": "running" if p["proc"].poll() is None else "finished", "modified": p["started"], "log": str(p["log"])})
         return out
 
@@ -144,7 +176,7 @@ class State:
                 continue
             judge = ((j.get("score") or {}).get("judge") or [{}])[0]
             rows.append({"file": f.name, "scenario": j.get("scenario"), "column": j.get("column") or "default", "account": j.get("account"),
-                         "user_turns": sum(1 for t in j.get("turns") or [] if t.get("user")), "stop": j.get("stop"),
+                         "profile": j.get("profile") or j.get("persona") or "", "user_turns": sum(1 for t in j.get("turns") or [] if t.get("user")), "stop": j.get("stop"),
                          "verdict": (j.get("score") or {}).get("verdict") or "-", "score": judge.get("score"), "steps": judge.get("steps_completed"),
                          "fabrication": judge.get("fabrication"), "violations": len(judge.get("violations") or []),
                          "asked_first": judge.get("asked_before_acting"), "annotation": j.get("annotation") or {}, "started": j.get("started")})
@@ -167,20 +199,20 @@ class State:
     def export_csv(self, name: str) -> str:
         buf = io.StringIO()
         w = csv.writer(buf)
-        w.writerow(["file", "scenario", "column", "account", "user_turns", "stop", "judge_verdict", "judge_score", "human_verdict", "issues", "comment", "by", "annotated_at"])
+        w.writerow(["file", "scenario", "column", "profile", "account", "user_turns", "stop", "judge_verdict", "judge_score", "human_verdict", "issues", "comment", "by", "annotated_at"])
         for r in self.run_detail(name):
             a = r["annotation"]
-            w.writerow([r["file"], r["scenario"], r["column"], r["account"], r["user_turns"], r["stop"], r["verdict"], r["score"],
+            w.writerow([r["file"], r["scenario"], r["column"], r["profile"], r["account"], r["user_turns"], r["stop"], r["verdict"], r["score"],
                         a.get("verdict", ""), "; ".join(a.get("issues") or []), a.get("comment", ""), a.get("by", ""), a.get("time", "")])
         return buf.getvalue()
 
     def preview(self, req: dict) -> dict:
-        from usersim.core.simulator import Exchange, UserSimulator, system_prompt
-        u0 = self.user()
+        from behavioreval.core.simulator import Exchange, UserSimulator, system_prompt
+        person = self.person(str(req.get("profile") or ""))
         sc = scenario.from_dict(req["scenario"], "form") if req.get("scenario") else next(s for s in scenario.resolve("all", directory=self.cfg.scenarios_dir) if s.id == req["id"])
-        problems = scenario.lint(sc, u0)
-        u = scenario.user_for(sc, u0)
-        r = scenario.render(sc, u0)
+        problems = scenario.lint(sc, person)
+        u = scenario.profile_for(sc, person)
+        r = scenario.render(sc, person)
         today = time.strftime("%Y-%m-%d")
         out = {"problems": problems, "opening": r.opening, "system_prompt": system_prompt(u, r, [], today)}
         lines = [l for l in (req.get("assistant") or []) if str(l).strip()]
@@ -198,14 +230,16 @@ class State:
         return out
 
     def state(self) -> dict:
-        from usersim.endpoints.evalsystem import check
+        from behavioreval.endpoints.evalsystem import check
         led = ledger.load(ledger.path_for(self.cfg.data_root))
-        accounts = list(config_mod.load_accounts(self.cfg.accounts_file))
-        return {"config": {k: str(getattr(self.cfg, k)) for k in ("user_model", "judge_model", "max_turns", "endpoint", "env", "lane", "model", "data_root", "scenarios_dir")},
+        profiles = self.profiles()
+        bound = profile_mod.bound_accounts(profiles)
+        return {"config": {k: str(getattr(self.cfg, k)) for k in ("user_model", "judge_model", "max_turns", "endpoint", "env", "lane", "model", "data_root", "scenarios_dir", "profiles_dir")},
                 "checks": [{"what": w, "ok": ok, "detail": d} for w, ok, d in check(self.cfg)],
-                "accounts": [{"email": a, "uses": len(led.get(a, [])), "last": (led.get(a) or [{}])[-1].get("time", "")} for a in accounts],
-                "sets": scenario.sets(self.cfg.scenarios_dir), "issues": ISSUES, "default_column": config_mod.column(self.cfg)[0],
-                "user": self.user().facts.get("name"), "root": str(ROOT)}
+                "accounts": [{"email": a, "uses": len(led.get(a, [])), "last": (led.get(a) or [{}])[-1].get("time", ""), "profile": bound.get(a, "")} for a in self.all_accounts()],
+                "profiles": [{"id": p.id, "name": p.name, "accounts": p.accounts} for p in profiles.values()],
+                "default_profile": self.cfg.profile, "columns": self.cfg.columns, "suggested_facts": list(profile_mod.SUGGESTED_FACTS), "profile_fields": list(profile_mod.PROFILE_FIELDS),
+                "sets": scenario.sets(self.cfg.scenarios_dir), "issues": ISSUES, "default_column": config_mod.column(self.cfg)[0], "root": str(ROOT)}
 
 
 def make_handler(state: State):
@@ -238,10 +272,10 @@ def make_handler(state: State):
                     return self._send(200, (HERE / "app.html").read_bytes(), "text/html")
                 if path == "/api/state":
                     return self._send(200, state.state())
+                if path == "/api/profiles":
+                    return self._send(200, state.profile_rows())
                 if path == "/api/scenarios":
-                    return self._send(200, state.scenarios())
-                if path == "/api/user":
-                    return self._send(200, json.loads(state.cfg.user_file.read_text(encoding="utf-8")))
+                    return self._send(200, state.scenarios(q.get("profile", "")))
                 if path == "/api/runs":
                     return self._send(200, state.runs())
                 if path == "/api/run":
@@ -254,10 +288,10 @@ def make_handler(state: State):
                     return self._send(200, text, "text/plain")
                 if path == "/api/export":
                     name = self._safe(q.get("name", ""))
+                    data = state.export_csv(name).encode("utf-8")
                     self.send_response(200)
                     self.send_header("Content-Type", "text/csv; charset=utf-8")
                     self.send_header("Content-Disposition", f'attachment; filename="{name}.csv"')
-                    data = state.export_csv(name).encode("utf-8")
                     self.send_header("Content-Length", str(len(data)))
                     self.end_headers()
                     self.wfile.write(data)
@@ -273,14 +307,14 @@ def make_handler(state: State):
                 path = urlparse(self.path).path
                 n = int(self.headers.get("Content-Length") or 0)
                 req = json.loads(self.rfile.read(n) or b"{}")
+                if path == "/api/profiles":
+                    return self._send(200, state.save_profile(req))
+                if path == "/api/profiles/delete":
+                    return self._send(200, {"deleted": profile_mod.delete(state.cfg.profiles_dir, str(req.get("id") or ""))})
                 if path == "/api/scenarios":
-                    return self._send(200, state.save_scenario(str(req.get("set") or ""), req.get("scenario") or {}))
+                    return self._send(200, state.save_scenario(str(req.get("set") or ""), req.get("scenario") or {}, str(req.get("profile") or "")))
                 if path == "/api/scenarios/delete":
                     return self._send(200, {"deleted": scenario.delete(state.cfg.scenarios_dir, str(req.get("set") or ""), str(req.get("id") or ""))})
-                if path == "/api/user":
-                    u = user_mod.from_dict(req, "form")
-                    state.cfg.user_file.write_text(json.dumps(req, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-                    return self._send(200, {"name": u.name})
                 if path == "/api/preview":
                     return self._send(200, state.preview(req))
                 if path == "/api/runs/start":
@@ -307,7 +341,7 @@ def make_server(cfg: Config, port: int = 0) -> ThreadingHTTPServer:
 def serve(cfg: Config, port: int, open_browser: bool = True) -> int:
     srv = make_server(cfg, port)
     url = f"http://127.0.0.1:{srv.server_address[1]}/"
-    print(f"usersim UI at {url}  (Ctrl-C to stop)")
+    print(f"Behavior Eval Tool at {url}  (Ctrl-C to stop)")
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:

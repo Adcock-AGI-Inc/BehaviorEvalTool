@@ -1,15 +1,15 @@
 """Where the user's messages go. An endpoint opens one conversation as one account, takes a
 message and returns the assistant's turn once it ended, and closes. Implementations live
-under ``usersim/endpoints``; ``make`` loads one by name so the core never imports them."""
+under ``behavioreval/endpoints``; ``make`` loads one by name so the core never imports them."""
 from __future__ import annotations
 
 import importlib
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from usersim.core.config import Config
+from behavioreval.core.config import Config
 
-NAMES = {"evalsystem": "usersim.endpoints.evalsystem", "openai_chat": "usersim.endpoints.openai_chat", "fake": "usersim.endpoints.fake"}
+NAMES = {"evalsystem": "behavioreval.endpoints.evalsystem", "openai_chat": "behavioreval.endpoints.openai_chat", "fake": "behavioreval.endpoints.fake"}
 
 
 @dataclass

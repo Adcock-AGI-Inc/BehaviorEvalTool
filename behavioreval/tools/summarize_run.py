@@ -1,7 +1,7 @@
 """Summarize a run directory: per column pass rate, stops, judge flags, per-scenario pass rate, and which
 conversations count as usable traces (the assistant replied at least once, no fallback line from the user
 model went out, the conversation did not end in an error before any reply).
-    python3 python3 -m usersim.tools.summarize_run <run dir> [--md out.md]"""
+    python3 python3 -m behavioreval.tools.summarize_run <run dir> [--md out.md]"""
 from __future__ import annotations
 
 import argparse

@@ -1,7 +1,7 @@
 """A readable digest of the failed conversations of a run: grouped by column and failure kind,
 each with the judge's reasoning, the evidence it cited (violations, fabrications, feasibility),
 and a compact transcript (user lines, assistant replies, tool names per turn).
-    python3 python3 -m usersim.tools.failures_digest <run dir> --out digest.md [--max-per-kind N] [--chars N]"""
+    python3 python3 -m behavioreval.tools.failures_digest <run dir> --out digest.md [--max-per-kind N] [--chars N]"""
 from __future__ import annotations
 
 import argparse

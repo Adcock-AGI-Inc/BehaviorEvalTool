@@ -19,10 +19,16 @@
   "judge_reasoning_tokens": 3000,
   "seed_profile": true,
   "history_in_briefing": true,
-  "data_root": "~/usersim-data",
+  "data_root": "~/behavioreval-data",
   "mvp_dir": "~/Documents/mvp",
   "accounts_file": "accounts.tsv",
-  "user_file": "user.json",
+  "profiles_dir": "profiles",
+  "profile": "default",
+  "columns": [
+    {"id": "default", "label": "Product default model (what users get today)"},
+    {"id": "claude-opus-5-5", "label": "Claude Opus 5.5 (catalog model override)"},
+    {"id": "slot20", "label": "Lane slot20 (self-hosted text-only model)"}
+  ],
   "scenarios_dir": "scenarios",
   "session_cache": "~/.cache/hark-eval-clear",
   "secrets_file": ".env",

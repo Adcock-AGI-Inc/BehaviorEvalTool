@@ -1,4 +1,4 @@
-"""usersim's own judge: reads the whole conversation (what the user said, what the assistant
+"""behavioreval's own judge: reads the whole conversation (what the user said, what the assistant
 replied, every tool call with its result) together with what the user actually wanted (the
 scenario's goal, beats, hidden facts, done_when) and who they are (limits), and answers a
 rubric, not just PASS/FAIL. Model and samples from the config (judge_model / judge_samples);
@@ -9,10 +9,10 @@ import json
 import re
 import time
 
-from usersim.core import openrouter
-from usersim.core.config import Config
-from usersim.core.harness import Conversation
-from usersim.core.scenario import Scenario
+from behavioreval.core import openrouter
+from behavioreval.core.config import Config
+from behavioreval.core.harness import Conversation
+from behavioreval.core.scenario import Scenario
 
 RUBRIC = """<judge_task>
 You are an expert evaluator grading one conversation between a simulated user and a personal AI assistant. You see everything: the user's messages, the assistant's replies, and every tool call the assistant made with its result. You also see what the user actually wanted, which the assistant could not see. Grade the ASSISTANT, not the user.

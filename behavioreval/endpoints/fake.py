@@ -1,7 +1,7 @@
 """A scripted assistant for tests and dry runs: one (reply, reason) per user message."""
 from __future__ import annotations
 
-from usersim.core.endpoint import AssistantTurn
+from behavioreval.core.endpoint import AssistantTurn
 
 
 class FakeEndpoint:
