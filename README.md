@@ -117,6 +117,14 @@ Rules of thumb that produced good scenarios:
 - Make `done_when` checkable from the transcript. The judge can only see what was delivered.
 - Do not write real people's names, addresses, phone numbers, card numbers or logins anywhere.
 
+## 5b. Chatting live (one turn at a time)
+
+**Chat** tab: pick a scenario and a model, **Start**. The opening goes out; when the assistant has answered, the user model
+proposes the next line (with its reason). You can send it as is, edit it, type something else, send a closing line, let it
+run on its own from here, or end. Every turn shows the reply and the tool calls as they land. At the end the judge grades it
+and the conversation is saved like any batch result (run `…-live-<you>`), with a mark on every line you edited.
+Use it to try a new scenario before putting it in a batch, or to steer a conversation into the corner you want to test.
+
 ## 6. Adding a new evaluation
 
 An "eval" here is a set: one file `scenarios/<set>.jsonl` with a theme (shopping, calendar, travel, …) plus a tag.
@@ -132,6 +140,18 @@ An "eval" here is a set: one file `scenarios/<set>.jsonl` with a theme (shopping
 Models ("columns"): the list offered in the Run tab comes from `columns` in `config.json`. `default` is the product's own model;
 `slotN` is a self-hosted lane (sent as a per-message `agent-llm` / `hark-slotN` override); any catalog model id such as
 `claude-opus-5-5` is a per-message model override. Type others into the "other columns" box.
+
+## 6b. Keeping the bank growing (sharing)
+
+The folder you cloned is the team's shared bank. **Share** tab:
+
+- **Get updates** — brings in scenarios and profiles others added (your unsaved edits are kept).
+- **Share my changes** — your name + one line on what you added; your scenarios and profile go to the team repository.
+  Only `scenarios/`, `profiles/` and `config.json` are ever shared; results and secrets never are.
+
+Put your scenarios in a set named after you or the topic — `scenarios/anderson_shopping.jsonl` — so two people never edit the
+same file. Keep the shared sets (`daily`, `complex`) for things everyone agrees on. Same from the command line:
+`python3 -m behavioreval sync status | pull | push --who anderson -m "3 shopping scenarios"`.
 
 ## 7. Command line (the UI uses the same commands)
 

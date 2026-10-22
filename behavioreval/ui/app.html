@@ -49,7 +49,9 @@
   <button data-tab="profiles">Profiles</button>
   <button data-tab="scenarios" class="on">Scenarios</button>
   <button data-tab="run">Run</button>
+  <button data-tab="chat">Chat</button>
   <button data-tab="results">Results</button>
+  <button data-tab="share">Share</button>
   <button data-tab="setup">Setup</button>
   <span id="who"><span class="help">I am</span><select id="who-profile" onchange="switchProfile()"></select><span id="who-note" class="help"></span></span>
 </header>
@@ -199,6 +201,46 @@
   </div>
 </section>
 
+<section id="chat">
+  <div class="grid">
+    <div class="card">
+      <strong>Live conversation</strong> <span class="help">— the same simulated user, one turn at a time, with you watching. After each reply the user model proposes the next line; send it, edit it, write your own, or let it run on its own.</span>
+      <label>scenario</label><select id="chat-scenario"></select>
+      <label>model</label><select id="chat-column"></select>
+      <div class="grid"><div><label>max user turns (blank = the scenario's)</label><input type="number" id="chat-turns" min="1" max="30"></div>
+        <div><label>&nbsp;</label><span class="chk"><input type="checkbox" id="chat-auto"> let it run on its own from the start</span></div></div>
+      <div class="toolbar"><button class="btn primary" id="chat-start" onclick="chatStart()">Start</button><span id="chat-msg" class="help"></span></div>
+      <div id="chat-brief" class="help" style="white-space:pre-wrap"></div>
+    </div>
+    <div class="card">
+      <div class="toolbar"><strong>Conversation</strong><span id="chat-state" class="pill"></span><span id="chat-meta" class="help"></span></div>
+      <div id="chat-turns"></div>
+      <div id="chat-your-turn" style="display:none">
+        <label>the user model proposes (<span id="chat-why" class="help"></span>) — edit if you like, then send</label>
+        <textarea id="chat-text"></textarea>
+        <div class="toolbar">
+          <button class="btn primary" onclick="chatSend(false)">Send</button>
+          <button class="btn" onclick="chatSend(true)">Send as last line and end</button>
+          <button class="btn" onclick="chatAct('auto', {on: true})">Let it run on its own</button>
+          <button class="btn danger" onclick="chatAct('end')" style="margin-left:auto">End now</button>
+        </div>
+      </div>
+      <div id="chat-done" style="display:none"><div id="chat-judge"></div><div class="toolbar"><button class="btn" onclick="chatOpenResult()">Open in Results</button></div></div>
+      <details><summary>log</summary><pre id="chat-log"></pre></details>
+    </div>
+  </div>
+</section>
+
+<section id="share">
+  <div class="card"><strong>Share with the team</strong>
+    <div class="help">Scenarios and profiles live in this folder, which is a copy of the team's repository. <b>Get updates</b> brings in what others added; <b>Share my changes</b> sends yours. Put your scenarios in a set named after you or the topic (<code>scenarios/anderson_shopping.jsonl</code>) and they never collide with anyone else's.</div>
+    <div id="share-status" class="help" style="margin:8px 0"></div>
+    <div class="toolbar"><button class="btn" onclick="sharePull()">Get updates</button></div>
+    <div class="grid"><div><label>your name</label><input type="text" id="share-who"></div><div><label>what you added (one line)</label><input type="text" id="share-msg" placeholder="3 shopping scenarios"></div></div>
+    <div class="toolbar"><button class="btn primary" onclick="sharePush()">Share my changes</button><span id="share-result" class="help"></span></div>
+  </div>
+</section>
+
 <section id="setup">
   <div class="card"><strong>Is everything in place?</strong><table id="setup-checks"><tbody></tbody></table>
     <div class="help">Fix anything MISSING, then reload this page. The README has the steps.</div></div>
@@ -230,6 +272,8 @@ function showTab(name) {
   if (name === "profiles") renderProfiles();
   if (name === "run") { renderRunForm(); loadRuns(); }
   if (name === "results") loadRuns().then(loadRun);
+  if (name === "chat") renderChatForm();
+  if (name === "share") renderShare();
   if (name === "setup") renderSetup();
   location.hash = name;
 }
@@ -471,6 +515,70 @@ async function saveAnnotation() {
   try { localStorage.setItem("bet.by", ann.by); } catch (e) {}
   try { const r = await api("/api/annotate", {run: CUR.run, file: CUR.file, annotation: ann}); $("ann-msg").textContent = "saved " + r.time; CUR.data.annotation = r; await loadRun(); }
   catch (e) { $("ann-msg").textContent = e.message; }
+}
+
+// ── chat (live) ──────────────────────────────────────────────────────────
+let CHAT_TIMER = null, CHAT = null;
+function renderChatForm() {
+  const sel = $("chat-scenario"); const cur = sel.value;
+  sel.innerHTML = SCENARIOS.filter(s => !s.problems.length && s.set !== "maint").map(s => `<option value="${esc(s.id)}" ${s.id === cur ? "selected" : ""}>${esc(s.id)} — ${esc((s.opening || "").slice(0, 60))}</option>`).join("");
+  $("chat-column").innerHTML = (STATE.columns || []).map(c => `<option value="${esc(c.id)}">${esc(c.id)} — ${esc(c.label || "")}</option>`).join("");
+  chatPoll();
+}
+async function chatStart() {
+  const req = {profile: me(), scenario: $("chat-scenario").value, column: $("chat-column").value, max_turns: +$("chat-turns").value || null, auto: $("chat-auto").checked};
+  $("chat-msg").textContent = "starting…";
+  try { CHAT = await api("/api/live/start", req); $("chat-msg").textContent = ""; renderChat(); chatPoll(); }
+  catch (e) { $("chat-msg").textContent = e.message; }
+}
+async function chatPoll() {
+  clearTimeout(CHAT_TIMER);
+  try { CHAT = await api("/api/live"); } catch (e) { return; }
+  renderChat();
+  if (CHAT.state && !["idle", "finished", "error"].includes(CHAT.state) && $("chat").classList.contains("on")) CHAT_TIMER = setTimeout(chatPoll, 3000);
+}
+async function chatSend(end) { await chatAct("send", {text: $("chat-text").value, end: !!end}); }
+async function chatAct(action, extra) {
+  try { CHAT = await api("/api/live/act", {action, ...(extra || {})}); renderChat(); chatPoll(); } catch (e) { $("chat-msg").textContent = e.message; }
+}
+function renderChat() {
+  const c = CHAT || {state: "idle"};
+  $("chat-state").textContent = c.state + (c.auto ? " · auto" : "");
+  $("chat-meta").textContent = c.scenario ? `${c.scenario} · ${c.column} · ${c.profile} · ${(c.turns || []).filter(t => t.user).length}/${c.max_turns} turns` : "";
+  $("chat-start").disabled = !["idle", "finished", "error"].includes(c.state);
+  const sc = SCENARIOS.find(s => s.id === c.scenario);
+  $("chat-brief").textContent = sc ? `goal: ${sc.goal || ""}\nhidden: ${(sc.hidden || []).join(" | ")}\ndone_when: ${sc.done_when || ""}` : "";
+  $("chat-turns").innerHTML = (c.turns || []).map(t => {
+    if (!t.user) return `<div class="turn help">the user model decided to stop: ${esc((t.sim || {}).why)}</div>`;
+    const calls = (t.calls || []).map(x => `<details><summary>${esc(x.name)}</summary><pre>${esc(JSON.stringify(x.input || {}, null, 1))}</pre></details>`).join("");
+    const edited = t.sim && t.sim.edited ? ` <span class="warn">(edited by you; proposed: ${esc(t.sim.proposed)})</span>` : "";
+    return `<div class="turn user"><strong>user ${t.n}</strong> ${esc(t.user)}${edited}${t.sim && t.sim.why ? `<div class="help">why: ${esc(t.sim.why)}</div>` : ""}</div>
+      <div class="turn assistant"><strong>assistant</strong> <span class="help">${t.assistant || t.reason ? `${esc(t.reason || "?")} · ${(t.calls || []).length} tool calls · ${Math.round(t.duration_s || 0)} s` : "working…"}${t.error ? ` · <span class="bad">${esc(t.error)}</span>` : ""}</span><div>${esc(t.assistant || "")}</div>${calls}</div>`;
+  }).join("");
+  const yours = c.state === "your_turn" && c.proposal;
+  $("chat-your-turn").style.display = yours ? "" : "none";
+  if (yours && document.activeElement !== $("chat-text")) { $("chat-text").value = c.proposal.say; $("chat-why").textContent = c.proposal.why + (c.proposal.done ? " · it would end here" : ""); }
+  $("chat-done").style.display = c.state === "finished" ? "" : "none";
+  if (c.state === "finished") { const j = ((c.score || {}).judge || [])[0] || {}; $("chat-judge").innerHTML = `<span class="pill ${esc((c.score || {}).verdict || "-")}">${esc((c.score || {}).verdict || "-")}</span> score ${j.score ?? "?"} · ${esc(j.reasoning || ((c.score || {}).lines || []).join(" "))}`; }
+  if (c.state === "error") $("chat-msg").textContent = c.error;
+  $("chat-log").textContent = (c.log || []).join("\n");
+}
+function chatOpenResult() { if (!CHAT || !CHAT.path) return; const parts = CHAT.path.split("/"); openResults(parts[parts.length - 2]); }
+
+// ── share ─────────────────────────────────────────────────────────────────
+async function renderShare() {
+  $("share-status").textContent = "checking…";
+  try { let by = ""; try { by = localStorage.getItem("bet.by") || ""; } catch (e) {} if (!$("share-who").value) $("share-who").value = by;
+    const st = await api("/api/sync");
+    $("share-status").innerHTML = st.error ? `<span class="bad">${esc(st.error)}</span>` : `branch <code>${esc(st.branch)}</code> · changed here: ${st.changed.length ? st.changed.map(f => `<code>${esc(f)}</code>`).join(", ") : "nothing"} · ${st.behind ? `<span class="warn">${st.behind} update(s) from others waiting</span>` : "up to date with the team"}${st.ahead ? ` · ${st.ahead} of yours not yet shared` : ""}`;
+  } catch (e) { $("share-status").textContent = e.message; }
+}
+async function sharePull() { $("share-result").textContent = "getting updates…"; try { const r = await api("/api/sync/pull", {}); $("share-result").textContent = r.result; await loadScenarios(); await loadProfiles(); renderShare(); } catch (e) { $("share-result").textContent = e.message; } }
+async function sharePush() {
+  const who = $("share-who").value.trim(); if (!who) { $("share-result").textContent = "put your name in"; return; }
+  try { localStorage.setItem("bet.by", who); } catch (e) {}
+  $("share-result").textContent = "sharing…";
+  try { const r = await api("/api/sync/push", {who, message: $("share-msg").value}); $("share-result").textContent = r.result; renderShare(); } catch (e) { $("share-result").textContent = e.message; }
 }
 
 // ── setup ─────────────────────────────────────────────────────────────────

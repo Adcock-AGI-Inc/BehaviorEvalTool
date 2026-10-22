@@ -19,7 +19,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from behavioreval.core import config as config_mod, ledger, openrouter, profile as profile_mod, scenario
+from behavioreval.core import config as config_mod, ledger, openrouter, profile as profile_mod, scenario, sync
+from behavioreval.core.live import LiveChat
 from behavioreval.core.config import ROOT, Config
 
 HERE = Path(__file__).resolve().parent
@@ -33,6 +34,48 @@ class State:
         self.cfg = cfg
         self.procs: dict[str, dict] = {}   # run tag → {proc, log, cmd, started}
         self.lock = threading.Lock()
+        self.live: LiveChat | None = None   # one live conversation at a time (one browser)
+
+    # ── live chat ────────────────────────────────────────────────────────
+    def live_start(self, req: dict) -> dict:
+        if self.live and self.live.state not in ("finished", "error"):
+            raise ValueError("a live conversation is still going; end it first")
+        pid = str(req.get("profile") or self.cfg.profile)
+        person = self.person(pid)
+        sc = next((s for s in scenario.resolve("all", directory=self.cfg.scenarios_dir) if s.id == req.get("scenario")), None)
+        if sc is None:
+            raise ValueError(f"no scenario {req.get('scenario')!r}")
+        problems = scenario.lint(sc, person)
+        if problems:
+            raise ValueError("; ".join(problems))
+        cfg = config_mod.with_column(self.cfg, str(req.get("column") or "default"))
+        if req.get("max_turns"):
+            from dataclasses import replace
+            cfg = replace(cfg, max_turns=int(req["max_turns"]))
+            sc = scenario.from_dict({**sc.to_dict(), "max_turns": int(req["max_turns"])}, "live")
+        if not openrouter.key():
+            raise ValueError("no OPENROUTER_API_KEY: the user model and the judge need it")
+        self.live = LiveChat(cfg, sc, person, endpoint_name=str(req.get("endpoint") or cfg.endpoint))
+        self.live.auto = bool(req.get("auto"))
+        self.live.start()
+        return self.live.snapshot()
+
+    def live_state(self) -> dict:
+        return self.live.snapshot() if self.live else {"state": "idle"}
+
+    def live_act(self, req: dict) -> dict:
+        if not self.live:
+            raise ValueError("no live conversation")
+        act = str(req.get("action") or "")
+        if act == "send":
+            self.live.send(str(req.get("text") or ""), bool(req.get("end")))
+        elif act == "end":
+            self.live.send("", True)
+        elif act == "auto":
+            self.live.set_auto(bool(req.get("on", True)))
+        else:
+            raise ValueError(f"unknown action {act!r}")
+        return self.live.snapshot()
 
     # ── profiles ─────────────────────────────────────────────────────────
     def profiles(self) -> dict[str, profile_mod.Profile]:
@@ -294,6 +337,10 @@ def make_handler(state: State):
                     return self._send(200, state.run_detail(self._safe(q.get("name", ""))))
                 if path == "/api/conversation":
                     return self._send(200, state.conversation(self._safe(q.get("run", "")), self._safe(q.get("file", ""))))
+                if path == "/api/live":
+                    return self._send(200, state.live_state())
+                if path == "/api/sync":
+                    return self._send(200, sync.status(fetch=q.get("fetch", "1") != "0"))
                 if path == "/api/log":
                     log = state.logs_dir() / f"{self._safe(q.get('tag', ''))}.log"
                     text = log.read_text(encoding="utf-8", errors="replace")[-int(q.get("chars", 20000)):] if log.exists() else "(no log yet)"
@@ -331,6 +378,14 @@ def make_handler(state: State):
                     return self._send(200, state.preview(req))
                 if path == "/api/runs/start":
                     return self._send(200, state.start_run(req))
+                if path == "/api/live/start":
+                    return self._send(200, state.live_start(req))
+                if path == "/api/live/act":
+                    return self._send(200, state.live_act(req))
+                if path == "/api/sync/pull":
+                    return self._send(200, {"result": sync.pull()})
+                if path == "/api/sync/push":
+                    return self._send(200, {"result": sync.push(str(req.get("who") or ""), str(req.get("message") or ""))})
                 if path == "/api/chrome/start":
                     return self._send(200, state.chrome_start(str(req.get("profile_directory") or "")))
                 if path == "/api/runs/stop":
@@ -338,7 +393,7 @@ def make_handler(state: State):
                 if path == "/api/annotate":
                     return self._send(200, state.annotate(self._safe(str(req.get("run") or "")), self._safe(str(req.get("file") or "")), req.get("annotation") or {}))
                 return self._send(404, {"error": "not found"})
-            except (ValueError, FileNotFoundError, StopIteration) as exc:
+            except (ValueError, FileNotFoundError, StopIteration, RuntimeError) as exc:
                 return self._send(400, {"error": str(exc) or type(exc).__name__})
             except Exception as exc:
                 return self._send(500, {"error": f"{type(exc).__name__}: {exc}"})
