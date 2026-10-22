@@ -408,7 +408,18 @@ def make_server(cfg: Config, port: int = 0) -> ThreadingHTTPServer:
 
 
 def serve(cfg: Config, port: int, open_browser: bool = True) -> int:
-    srv = make_server(cfg, port)
+    srv = None
+    for p in range(port, port + 20):   # the configured port, else the next free one (something else may hold 8765)
+        try:
+            srv = make_server(cfg, p)
+            break
+        except OSError:
+            continue
+    if srv is None:
+        print(f"no free port between {port} and {port + 19}")
+        return 2
+    if srv.server_address[1] != port:
+        print(f"port {port} is taken by another program; using {srv.server_address[1]} instead")
     url = f"http://127.0.0.1:{srv.server_address[1]}/"
     print(f"Behavior Eval Tool at {url}  (Ctrl-C to stop)")
     if open_browser:
