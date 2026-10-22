@@ -45,6 +45,8 @@
   .cat { margin:18px 0 8px; display:flex; align-items:baseline; gap:10px; } .cat h2 { margin:0; } .cat a { font-size:12px; }
   .tests { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:12px; }
   .test { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; cursor:pointer; display:flex; gap:10px; align-items:flex-start; min-width:0; }
+  .test .title { font-weight:600; display:flex; justify-content:space-between; gap:8px; align-items:center; }
+  .test .q { margin:6px 0 0; padding:8px 10px; border-left:3px solid var(--line); color:var(--fg); font-style:italic; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
   .test.sel { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
   .test input { margin-top:3px; }
   .test .t { flex:1; min-width:0; } .test .t .o { font-weight:500; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
@@ -102,9 +104,7 @@
 <section id="page-tests" hidden>
   <div class="row" style="justify-content:space-between"><div><h1>Tests</h1><p class="sub">Tick what to run. Click a card to read or edit it. <span id="tests-lint" class="small"></span></p></div>
     <div class="row"><input type="text" id="tests-search" placeholder="search…" oninput="renderTests()" style="width:220px"></div></div>
-  <div class="card" style="margin:0 0 14px"><div class="legend" style="margin:0">
-    <span><span class="pill open">short ask</span> <b>one line, the assistant has to ask for the rest.</b> e.g. "Find me a mechanic shop that can do a side mirror replacement on my car" — the simulated user then answers where it lives, the budget, the car, one at a time.</span>
-    <span><span class="pill preset">detailed ask</span> <b>everything stated up front, then several steps.</b> e.g. "Find me someone near home who can clean my windows. I live on the 16th floor…" — the simulated user checks the assistant gets each step right in order.</span></div></div>
+  <p class="muted small" style="margin:0 0 12px"><span class="pill open">short ask</span> one line, the assistant must ask for the rest &nbsp;·&nbsp; <span class="pill preset">detailed ask</span> everything said up front, several steps</p>
   <div class="card" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; border-style:dashed">
     <div style="flex:1; min-width:240px"><strong>Add your own test</strong><div class="muted small">Pick a category (or make a new one), write the first message the way a real person would, and list the details they would give only when asked.</div></div>
     <select id="tests-newcat" style="width:auto; min-width:220px"></select>
@@ -312,6 +312,7 @@ async function loadTests() { TESTS = await api("/api/scenarios?profile=" + encod
 function kind(t) { return (t.tags || []).includes("preset") ? "preset" : (t.tags || []).includes("open") ? "open" : ""; }
 const KIND_LABEL = {open: "short ask", preset: "detailed ask"};
 function kindPill(t) { const k = kind(t); return k ? `<span class="pill ${k}">${KIND_LABEL[k]}</span>` : ""; }
+function titleOf(t) { const slug = (t.id || "").split("/").pop().replace(/^\d+_/, "").replace(/^(open|preset)_/, ""); return slug.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase()); }
 function renderTests() {
   const q = $("tests-search").value.toLowerCase();
   const sets = [...new Set(TESTS.map(t => t.set))].filter(s => s !== "maint");
@@ -326,7 +327,7 @@ function renderTests() {
     const label = (items[0] || {}).set_label || set;
     return `<div class="cat"><h2>${esc(label)}</h2><span class="muted small">${esc(set)}</span><a href="#" onclick="selectSet('${esc(set)}');return false">select both</a></div><div class="tests">` +
       items.map(t => `<div class="test ${SEL.has(t.id) ? "sel" : ""}" onclick="openTest('${esc(t.id)}')"><input type="checkbox" ${SEL.has(t.id) ? "checked" : ""} ${t.problems.length ? "disabled" : ""} onclick="event.stopPropagation(); toggleSel('${esc(t.id)}', this.checked)">
-        <div class="t"><div class="o">${esc(t.opening)}</div><div class="meta">${kindPill(t)}<span>${t.max_turns || STATE.config.max_turns} turns</span>${(t.beats || []).length ? `<span>${t.beats.length} steps</span>` : ""}${t.problems.length ? `<span class="bad">${esc(t.problems[0])}</span>` : ""}</div></div></div>`).join("") +
+        <div class="t"><div class="title"><span>${esc(titleOf(t))}</span>${kindPill(t)}</div><div class="q">“${esc(t.opening)}”</div><div class="meta"><span>${t.max_turns || STATE.config.max_turns} turns</span>${(t.beats || []).length ? `<span>${t.beats.length} steps</span>` : ""}${t.problems.length ? `<span class="bad">${esc(t.problems[0])}</span>` : ""}</div></div></div>`).join("") +
       `<div class="test add" onclick="newTest('${esc(set)}')">+ add a test to ${esc(label)}</div></div>`;
   }).join("");
   renderBar();
@@ -346,7 +347,7 @@ function renderBar() {
 }
 function openTest(id) {
   const t = TESTS.find(x => x.id === id); CUR = {test: t};
-  $("d-title").textContent = t.id; $("d-conv").hidden = true; $("d-view").hidden = false; $("d-edit").hidden = true; $("d-edit-btn").hidden = false; $("d-edit-btn").textContent = "Edit";
+  $("d-title").textContent = titleOf(t) + "  ·  " + t.id; $("d-conv").hidden = true; $("d-view").hidden = false; $("d-edit").hidden = true; $("d-edit-btn").hidden = false; $("d-edit-btn").textContent = "Edit";
   $("d-view").innerHTML = `<div class="turn user"><div class="who">first message, sent as written</div>${esc(t.opening)}</div>
     <div class="kv"><div>kind</div><div>${kindPill(t) || "—"} · ${t.max_turns || STATE.config.max_turns} user turns</div>
     <div>what is going on</div><div>${esc(t.situation || "—")}</div><div>what they want</div><div>${esc(t.goal || "—")}</div>
