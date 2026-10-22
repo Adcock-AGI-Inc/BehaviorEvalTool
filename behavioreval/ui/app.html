@@ -63,6 +63,9 @@
   .kv { display:grid; grid-template-columns:150px 1fr; gap:6px 12px; font-size:13px; } .kv div:nth-child(odd) { color:var(--muted); }
   .chk { display:inline-flex; align-items:center; gap:6px; margin-right:12px; }
   .notice { border-left:4px solid var(--warn); } .notice.bad { border-left-color:var(--bad); } .notice.ok { border-left-color:var(--good); }
+  .todo { display:grid; grid-template-columns: 28px 1fr auto; gap:10px 12px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); }
+  .todo:last-child { border-bottom:0; } .todo .n { width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; background:var(--line); color:var(--muted); }
+  .todo .n.ok { background:var(--good); color:#fff; } .todo .n.no { background:var(--bad); color:#fff; } .todo .what { color:var(--muted); font-size:13px; }
   .progress { height:6px; background:var(--line); border-radius:3px; overflow:hidden; } .progress i { display:block; height:100%; background:var(--accent); }
   @media (max-width: 760px) { nav { display:none; } .bar { left:0; } main { padding:16px; } }
 </style>
@@ -83,10 +86,12 @@
 <section id="page-home">
   <h1>Test the assistant the way a person would</h1>
   <p class="sub">A simulated user runs your tests against the assistant on dev, in your own Chrome, as you. A judge grades each conversation; you add your own verdict.</p>
+  <div class="card" id="home-setup" style="margin:0 0 16px"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Get ready</h2><span id="home-ready" class="muted"></span></div>
+    <div id="home-steps"></div>
+    <div class="row" style="margin-top:12px"><button class="btn primary" id="home-go" onclick="go('tests')" disabled>All set → pick tests</button><span class="muted small" id="home-go-note"></span></div></div>
   <div id="home-account" class="card" style="margin:0 0 14px"></div>
   <div class="steps">
-    <div class="step"><div class="k">Before you start</div><h3 id="home-ready">Checking…</h3><div id="home-checks"></div><div class="row" style="margin-top:10px"><button class="btn" onclick="go('settings')">Open settings</button><button class="btn primary" id="home-chrome-btn" onclick="startChrome()">Start my Chrome</button></div></div>
-    <div class="step"><div class="k">Step 1</div><h3>Pick tests</h3><p class="muted">Each category has an <b>open</b> test (just the prompt) and a <b>preset</b> test (conditions in the prompt). Tick the ones you want, or add your own.</p><button class="btn primary" onclick="go('tests')">Go to tests</button></div>
+    <div class="step"><div class="k">Step 1</div><h3>Pick tests</h3><p class="muted">Each category has a <b>short ask</b> and a <b>detailed ask</b>. Tick the ones you want, or add your own.</p><button class="btn" onclick="go('tests')">Go to tests</button></div>
     <div class="step"><div class="k">Step 2</div><h3>Run</h3><p class="muted">A batch runs one conversation after another in your Chrome. Or watch one live and steer it turn by turn.</p><button class="btn" onclick="go('run')">Go to run</button></div>
     <div class="step"><div class="k">Step 3</div><h3>Review</h3><p class="muted">Read each conversation with its tool calls and the judge's reasons, give your verdict, export a CSV.</p><button class="btn" onclick="go('results')">Go to results</button></div>
   </div>
@@ -276,12 +281,21 @@ function paintNotice(id) { const n = accountNotice(); const el = $(id); el.class
 
 // ── home ──────────────────────────────────────────────────────────────────
 async function renderHome() {
-  STATE = await api("/api/state");
-  const checks = STATE.checks || []; const bad = checks.filter(c => !c.ok);
-  $("home-ready").textContent = bad.length ? `${bad.length} thing(s) to fix` : "Ready";
-  $("home-ready").className = bad.length ? "warn" : "good";
-  $("home-checks").innerHTML = checks.map(c => `<div class="check"><span class="dot ${c.ok ? "ok" : "no"}"></span><span>${esc(c.what)}</span>${c.ok ? "" : `<span class="muted small">— ${esc(c.detail)}</span>`}</div>`).join("");
-  $("home-chrome-btn").hidden = !(onChrome() && !(STATE.chrome || {}).up);
+  STATE = await api("/api/state"); await loadProfiles();
+  const checks = Object.fromEntries((STATE.checks || []).map(c => [c.what, c]));
+  const p = myProfile(); const ch = STATE.chrome || {};
+  const prof = (ch.profiles || []).find(c => c.dir === p.chrome_profile);
+  const mismatch = prof && prof.email && p.email && prof.email.toLowerCase() !== p.email.toLowerCase();
+  const rows = [
+    {ok: !!(checks["OpenRouter key"] || {}).ok, title: "OpenRouter key", what: (checks["OpenRouter key"] || {}).ok ? "found in .env" : "paste OPENROUTER_API_KEY=… into the .env file in the tool folder, then reload this page", action: ""},
+    {ok: !!(checks["viewer login"] || {}).ok, title: "Signed in to the trajectory viewer", what: (checks["viewer login"] || {}).ok ? "ok" : "in a terminal: cloudflared access login https://trajectory.tools.hark.com (same Google account as dev), then reload", action: ""},
+    {ok: !!(p.email && p.chrome_profile && !mismatch), title: "Who you are", what: !p.email || !p.chrome_profile ? "tell the tool your dev account email and which Chrome profile is signed in to dev" : mismatch ? `your profile says ${p.email} but that Chrome profile is signed in as ${prof.email}` : `${p.name} · ${p.email} · Chrome profile ${p.chrome_profile}`, action: `<button class="btn primary small" onclick="go('settings')">Set up my profile</button>`},
+    {ok: !!ch.up, title: "Your Chrome is running", what: ch.up ? `the tool's Chrome is up on port ${ch.port}` : "the tool opens a second Chrome from a copy of your dev profile; leave that window alone during runs", action: `<button class="btn primary small" id="home-chrome-btn" onclick="startChrome()" ${p.chrome_profile ? "" : "disabled title='set your Chrome profile first'"}>Start my Chrome</button>`},
+  ];
+  const left = rows.filter(r => !r.ok).length;
+  $("home-ready").textContent = left ? `${left} step(s) left` : "ready";
+  $("home-steps").innerHTML = rows.map((r, i) => `<div class="todo"><span class="n ${r.ok ? "ok" : "no"}">${r.ok ? "✓" : i + 1}</span><div><div><b>${esc(r.title)}</b></div><div class="what">${esc(r.what)}</div></div><div>${r.ok ? "" : r.action}</div></div>`).join("");
+  $("home-go").disabled = left > 0; $("home-go-note").textContent = left ? "finish the steps above first" : "";
   paintNotice("home-account");
   RUNS = await api("/api/runs");
   $("home-runs").innerHTML = RUNS.slice(0, 5).map(r => `<div class="row" style="justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line)"><span>${esc(r.name)} ${r.status === "running" ? '<span class="pill running">running</span>' : ""}</span><span class="muted small">${r.conversations} conversations · ${Object.entries(r.verdicts).map(([k, v]) => k + " " + v).join(", ") || "—"} · ${r.annotated} reviewed</span>${r.conversations ? `<button class="btn small" onclick="openResults('${esc(r.name)}')">open</button>` : ""}</div>`).join("") || "no runs yet";
@@ -526,6 +540,7 @@ async function renderSettings() {
   editProfile(me());
   $("set-config").innerHTML = Object.entries(STATE.config).map(([k, v]) => `<div>${esc(k)}</div><div><code>${esc(v)}</code></div>`).join("");
   renderShare();
+  if (!myProfile().email) { $("p-email").scrollIntoView({behavior: "smooth", block: "center"}); }
 }
 function factsForm(facts) {
   const keys = STATE.suggested_facts || [];
@@ -562,9 +577,9 @@ async function saveProfile() {
 async function deleteProfile() { const id = $("p-id").value.trim(); if (!id) return; $("pf-msg").textContent = "deleting…"; try { const r = await api("/api/profiles/delete", {id}); if (!r.deleted) throw new Error("the default profile cannot be deleted"); await loadProfiles(); fillMe(); renderSettings(); } catch (e) { $("pf-msg").textContent = e.message; } }
 async function startChrome() {
   const dir = myProfile().chrome_profile || $("set-chrome-profile").value; if (!dir) { go("settings"); $("set-chrome-msg").textContent = "pick the Chrome profile signed in to dev first"; return; }
-  $("set-chrome-msg").textContent = "starting…"; $("home-chrome-btn").textContent = "starting…";
-  try { const r = await api("/api/chrome/start", {profile_directory: dir}); $("set-chrome-msg").textContent = (r.log || []).slice(-1)[0] || "started"; STATE = await api("/api/state"); $("home-chrome-btn").textContent = "Start my Chrome"; if (!$("page-home").hidden) renderHome(); if (!$("page-run").hidden) renderRunForm(); }
-  catch (e) { $("set-chrome-msg").textContent = e.message; $("home-chrome-btn").textContent = "Start my Chrome"; }
+  $("set-chrome-msg").textContent = "starting…"; if ($("home-chrome-btn")) $("home-chrome-btn").textContent = "starting…";
+  try { const r = await api("/api/chrome/start", {profile_directory: dir}); $("set-chrome-msg").textContent = (r.log || []).slice(-1)[0] || "started"; STATE = await api("/api/state"); if (!$("page-home").hidden) renderHome(); if (!$("page-run").hidden) renderRunForm(); }
+  catch (e) { $("set-chrome-msg").textContent = e.message; if ($("home-chrome-btn")) $("home-chrome-btn").textContent = "Start my Chrome"; }
 }
 async function renderShare() {
   if (!$("share-who").value) $("share-who").value = store.get("by", "");
