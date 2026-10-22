@@ -31,6 +31,8 @@
   .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600; background:var(--line); color:var(--muted); }
   .pill.PASS { background:var(--good-soft); color:var(--good); } .pill.FAIL { background:var(--bad-soft); color:var(--bad); } .pill.UNSURE, .pill.UNREADABLE, .pill.running { background:var(--warn-soft); color:var(--warn); }
   .pill.open { background:var(--accent-soft); color:var(--accent); } .pill.preset { background:var(--warn-soft); color:var(--warn); }
+  .legend { display:flex; gap:18px; flex-wrap:wrap; margin:0 0 6px; font-size:13px; color:var(--muted); } .legend span b { color:var(--fg); }
+  .test.add { border-style:dashed; color:var(--accent); align-items:center; justify-content:center; font-weight:500; min-height:84px; }
   label { display:block; margin:10px 0 3px; color:var(--muted); font-size:12px; }
   input[type=text], input[type=number], textarea, select { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--fg); font:inherit; }
   textarea { min-height:64px; resize:vertical; }
@@ -94,7 +96,8 @@
 
 <section id="page-tests" hidden>
   <div class="row" style="justify-content:space-between"><div><h1>Tests</h1><p class="sub">Tick what to run. Click a card to read or edit it. <span id="tests-lint" class="small"></span></p></div>
-    <div class="row"><input type="text" id="tests-search" placeholder="search…" oninput="renderTests()" style="width:220px"><button class="btn" onclick="newTest()">+ New test</button></div></div>
+    <div class="row"><input type="text" id="tests-search" placeholder="search…" oninput="renderTests()" style="width:220px"><button class="btn primary" onclick="newTest()">+ Add a test</button></div></div>
+  <div class="legend"><span><span class="pill open">just the prompt</span> <b>the tester's first message as written</b>; the simulated user answers the assistant's questions as they come</span><span><span class="pill preset">details in the prompt</span> <b>the conditions are already in the first message</b>, and the user works through steps in order</span></div>
   <div id="tests-list"></div>
 </section>
 
@@ -113,7 +116,7 @@
         <div class="row" style="margin-top:8px"><span class="chk"><input type="checkbox" id="run-judge" checked> judge each conversation</span><span class="chk"><input type="checkbox" id="run-calibrate"> calibrate memory first</span><span class="chk"><input type="checkbox" id="run-cleanup"> clean up after</span></div>
         <label>max user turns (blank = each test's own)</label><input type="number" id="run-turns" min="1" max="30" style="max-width:160px">
       </details>
-      <div class="row" style="margin-top:14px"><button class="btn primary" id="run-start" onclick="startRun()">Start batch</button><span id="run-msg" class="muted small"></span></div>
+      <div class="row" style="margin-top:14px"><button class="btn primary" id="run-start" onclick="startRun()">Start batch</button><button class="btn" id="run-chrome-btn" onclick="startChrome()" hidden>Start my Chrome first</button><span id="run-msg" class="muted small"></span></div>
     </div>
     <div class="card">
       <h2 style="margin-top:0">Watch one live</h2>
@@ -195,7 +198,7 @@
       <div><label>details they give only when asked — one per line (answers to every question the assistant will ask)</label><textarea id="f-hidden" style="min-height:100px"></textarea>
         <label>steps, in order (optional, one per line)</label><textarea id="f-beats"></textarea>
         <label>max user turns</label><input type="number" id="f-max_turns" min="1" max="30">
-        <label>tags (comma separated; use open or preset)</label><input type="text" id="f-tags">
+        <label>tags (comma separated) — include <b>open</b> for "just the prompt" or <b>preset</b> for "details in the prompt"</label><input type="text" id="f-tags">
         <label>what it leaves on the account (for cleanup); "nothing" if nothing</label><input type="text" id="f-leaves">
         <label>facts that differ from my profile for this test (JSON, optional)</label><textarea id="f-user"></textarea>
         <label>extra judge criteria (optional, one per line)</label><textarea id="f-criteria"></textarea></div>
@@ -280,6 +283,8 @@ async function renderHome() {
 // ── tests ─────────────────────────────────────────────────────────────────
 async function loadTests() { TESTS = await api("/api/scenarios?profile=" + encodeURIComponent(me())); }
 function kind(t) { return (t.tags || []).includes("preset") ? "preset" : (t.tags || []).includes("open") ? "open" : ""; }
+const KIND_LABEL = {open: "just the prompt", preset: "details in the prompt"};
+function kindPill(t) { const k = kind(t); return k ? `<span class="pill ${k}">${KIND_LABEL[k]}</span>` : ""; }
 function renderTests() {
   const q = $("tests-search").value.toLowerCase();
   const sets = [...new Set(TESTS.map(t => t.set))].filter(s => s !== "maint");
@@ -288,9 +293,11 @@ function renderTests() {
   $("tests-list").innerHTML = sets.map(set => {
     const items = TESTS.filter(t => t.set === set && (!q || JSON.stringify(t).toLowerCase().includes(q)));
     if (!items.length) return "";
-    return `<div class="cat"><h2>${esc(set)}</h2><a href="#" onclick="selectSet('${esc(set)}');return false">select all in ${esc(set)}</a></div><div class="tests">` +
+    const label = (items[0] || {}).set_label || set;
+    return `<div class="cat"><h2>${esc(label)}</h2><span class="muted small">${esc(set)}</span><a href="#" onclick="selectSet('${esc(set)}');return false">select both</a></div><div class="tests">` +
       items.map(t => `<div class="test ${SEL.has(t.id) ? "sel" : ""}" onclick="openTest('${esc(t.id)}')"><input type="checkbox" ${SEL.has(t.id) ? "checked" : ""} ${t.problems.length ? "disabled" : ""} onclick="event.stopPropagation(); toggleSel('${esc(t.id)}', this.checked)">
-        <div class="t"><div class="o">${esc(t.opening)}</div><div class="meta">${kind(t) ? `<span class="pill ${kind(t)}">${kind(t)}</span>` : ""}<span>${t.max_turns || STATE.config.max_turns} turns</span>${(t.beats || []).length ? `<span>${t.beats.length} steps</span>` : ""}${t.problems.length ? `<span class="bad">${esc(t.problems[0])}</span>` : ""}</div></div></div>`).join("") + "</div>";
+        <div class="t"><div class="o">${esc(t.opening)}</div><div class="meta">${kindPill(t)}<span>${t.max_turns || STATE.config.max_turns} turns</span>${(t.beats || []).length ? `<span>${t.beats.length} steps</span>` : ""}${t.problems.length ? `<span class="bad">${esc(t.problems[0])}</span>` : ""}</div></div></div>`).join("") +
+      `<div class="test add" onclick="newTest('${esc(set)}')">+ add a test to ${esc(label)}</div></div>`;
   }).join("");
   renderBar();
 }
@@ -311,7 +318,7 @@ function openTest(id) {
   const t = TESTS.find(x => x.id === id); CUR = {test: t};
   $("d-title").textContent = t.id; $("d-conv").hidden = true; $("d-view").hidden = false; $("d-edit").hidden = true; $("d-edit-btn").hidden = false; $("d-edit-btn").textContent = "Edit";
   $("d-view").innerHTML = `<div class="turn user"><div class="who">first message, sent as written</div>${esc(t.opening)}</div>
-    <div class="kv"><div>kind</div><div>${kind(t) ? `<span class="pill ${kind(t)}">${kind(t)}</span>` : "—"} · ${t.max_turns || STATE.config.max_turns} user turns</div>
+    <div class="kv"><div>kind</div><div>${kindPill(t) || "—"} · ${t.max_turns || STATE.config.max_turns} user turns</div>
     <div>what is going on</div><div>${esc(t.situation || "—")}</div><div>what they want</div><div>${esc(t.goal || "—")}</div>
     <div>details given only when asked</div><div>${(t.hidden || []).map(h => "• " + esc(h)).join("<br>") || "—"}</div>
     ${(t.beats || []).length ? `<div>steps</div><div>${t.beats.map((b, i) => (i + 1) + ". " + esc(b)).join("<br>")}</div>` : ""}
@@ -338,10 +345,12 @@ function readForm() {
   const crit = lines("f-criteria"); if (crit.length) s.scoring = {criteria: crit};
   return s;
 }
-function newTest() {
+function newTest(set) {
   const mine = (me() || "my").replace(/[^a-z0-9_-]/g, "");
+  set = set || mine + "_tests";
+  const n = TESTS.filter(t => t.set === set).length + 1;
   CUR = {test: null}; $("d-title").textContent = "New test"; $("d-conv").hidden = true; $("d-view").hidden = true; $("d-edit").hidden = false; $("d-edit-btn").hidden = true;
-  fillForm({set: mine + "_tests", id: mine + "_tests/01_", tags: ["open"], max_turns: 4, leaves: "nothing"}); openDrawer();
+  fillForm({set, id: `${set}/${String(n).padStart(2, "0")}_`, tags: ["open"], max_turns: 4, leaves: "nothing"}); openDrawer(); $("f-opening").focus();
 }
 async function saveTest() {
   try { const r = await api("/api/scenarios", {set: $("f-set").value.trim(), scenario: readForm(), profile: me()}); $("f-msg").textContent = r.problems.length ? "saved, but: " + r.problems.join("; ") : "saved ✓"; await loadTests(); renderTests(); }
@@ -359,7 +368,10 @@ function renderRunForm() {
   $("run-summary").innerHTML = sel.length ? `<b>${sel.length} test(s)</b>: ${sel.map(id => `<code>${esc(id)}</code>`).join(", ")} <a href="#" onclick="go('tests');return false">change</a>` : 'No tests selected yet. <a href="#" onclick="go(\'tests\');return false">Pick some</a>.';
   colChips($("run-cols"));
   if (!$("run-tag").value) $("run-tag").value = me();
-  $("run-start").disabled = !sel.length;
+  const chromeDown = onChrome() && !(STATE.chrome || {}).up;
+  $("run-start").disabled = !sel.length || chromeDown;
+  $("run-chrome-btn").hidden = !chromeDown;
+  $("chat-start").disabled = chromeDown;
   const chat = $("chat-scenario"); const cur = chat.value;
   chat.innerHTML = TESTS.filter(t => !t.problems.length && t.set !== "maint").map(t => `<option value="${esc(t.id)}" ${t.id === cur ? "selected" : ""}>${esc(t.id)} — ${esc(t.opening.slice(0, 60))}</option>`).join("");
   $("chat-column").innerHTML = (STATE.columns || []).map(c => `<option value="${esc(c.id)}">${esc(c.id)} — ${esc(c.label || "")}</option>`).join("");
@@ -520,9 +532,9 @@ async function saveProfile() {
 }
 async function deleteProfile() { const id = $("p-id").value.trim(); if (!id) return; $("pf-msg").textContent = "deleting…"; try { const r = await api("/api/profiles/delete", {id}); if (!r.deleted) throw new Error("the default profile cannot be deleted"); await loadProfiles(); fillMe(); renderSettings(); } catch (e) { $("pf-msg").textContent = e.message; } }
 async function startChrome() {
-  const dir = $("set-chrome-profile").value || myProfile().chrome_profile; if (!dir) { go("settings"); $("set-chrome-msg").textContent = "pick the Chrome profile signed in to dev first"; return; }
+  const dir = myProfile().chrome_profile || $("set-chrome-profile").value; if (!dir) { go("settings"); $("set-chrome-msg").textContent = "pick the Chrome profile signed in to dev first"; return; }
   $("set-chrome-msg").textContent = "starting…"; $("home-chrome-btn").textContent = "starting…";
-  try { const r = await api("/api/chrome/start", {profile_directory: dir}); $("set-chrome-msg").textContent = (r.log || []).slice(-1)[0] || "started"; STATE = await api("/api/state"); $("home-chrome-btn").textContent = "Start my Chrome"; if (!$("page-home").hidden) renderHome(); }
+  try { const r = await api("/api/chrome/start", {profile_directory: dir}); $("set-chrome-msg").textContent = (r.log || []).slice(-1)[0] || "started"; STATE = await api("/api/state"); $("home-chrome-btn").textContent = "Start my Chrome"; if (!$("page-home").hidden) renderHome(); if (!$("page-run").hidden) renderRunForm(); }
   catch (e) { $("set-chrome-msg").textContent = e.message; $("home-chrome-btn").textContent = "Start my Chrome"; }
 }
 async function renderShare() {

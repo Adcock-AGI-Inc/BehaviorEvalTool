@@ -115,6 +115,20 @@ def sets(directory: Path) -> list[str]:
     return sorted(p.stem for p in directory.glob("*.jsonl") if not p.name.startswith("_"))
 
 
+def set_label(directory: Path, stem: str) -> str:
+    """The human name of a set: the first comment line of its file up to ' — ' (else the stem)."""
+    path = directory / f"{stem}.jsonl"
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("#"):
+                return line.lstrip("# ").split(" — ")[0].split(" - ")[0].strip() or stem
+            if line.strip():
+                break
+    except OSError:
+        pass
+    return stem
+
+
 def resolve(spec: str, only: list[str] | None = None, directory: Path | None = None) -> list[Scenario]:
     """``spec`` is a path, a file stem under the scenarios dir, or ``all``; ``only`` keeps ids."""
     scs: list[Scenario] = []

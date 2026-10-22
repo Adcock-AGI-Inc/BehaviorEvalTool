@@ -117,9 +117,10 @@ class State:
             except ValueError as exc:
                 out.append({"set": s, "id": f"{s}/(file error)", "opening": "", "problems": [str(exc)]})
                 continue
+            label = scenario.set_label(self.cfg.scenarios_dir, s)
             for sc in scs:
                 d = sc.to_dict()
-                d["set"], d["problems"] = s, scenario.lint(sc, u)
+                d["set"], d["set_label"], d["problems"] = s, label, scenario.lint(sc, u)
                 out.append(d)
         return out
 
@@ -145,6 +146,10 @@ class State:
             raise ValueError("pick at least one scenario")
         pid = str(req.get("profile") or self.cfg.profile)
         self.person(pid)   # must exist
+        if (str(req.get("endpoint") or self.cfg.endpoint) == "chrome"):
+            from behavioreval.browser import cdp
+            if not cdp.up(self.cfg.chrome_port):
+                raise ValueError("your Chrome is not running yet: click 'Start my Chrome' (Home or Settings), wait for the window, then start again")
         tag = re.sub(r"[^A-Za-z0-9_.-]+", "-", str(req.get("tag") or pid)).strip("-") or pid
         tag = f"{tag}-{time.strftime('%H%M%S')}"
         cmd = [sys.executable, "-m", "behavioreval", "run", "--yes", "--tag", tag, "--scenarios", "all", "--profile", pid]
