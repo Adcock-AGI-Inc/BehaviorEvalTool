@@ -409,7 +409,7 @@ def make_server(cfg: Config, port: int = 0) -> ThreadingHTTPServer:
 
 def serve(cfg: Config, port: int, open_browser: bool = True) -> int:
     srv = None
-    for p in range(port, port + 20):   # the configured port, else the next free one (something else may hold 8765)
+    for p in range(port, port + 20):   # the configured port, else the next free one (something else may hold 8930)
         try:
             srv = make_server(cfg, p)
             break

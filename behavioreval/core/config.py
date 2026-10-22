@@ -49,7 +49,7 @@ class Config:
     scenarios_dir: Path = Path("scenarios")
     session_cache: Path = Path("~/.cache/hark-eval-clear")
     secrets_file: Path = Path(".env")              # KEY=VALUE lines; only SECRET_KEYS are read from it
-    ui_port: int = 8765
+    ui_port: int = 8930
     source: dict = field(default_factory=dict)   # where each value came from, for `behavioreval config`
 
     @property

@@ -47,5 +47,5 @@
   "scenarios_dir": "scenarios",
   "session_cache": "~/.cache/hark-eval-clear",
   "secrets_file": ".env",
-  "ui_port": 8765
+  "ui_port": 8930
 }

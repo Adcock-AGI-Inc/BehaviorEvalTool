@@ -45,7 +45,7 @@ git clone git@github.com:Adcock-AGI-Inc/BehaviorEvalTool.git
 cd BehaviorEvalTool
 cp .env.example .env                   # fill in OPENROUTER_API_KEY (the other lines can stay empty)
 python3 -m behavioreval check          # every line must say OK (except "the tool's Chrome is up", see step 3)
-python3 -m behavioreval ui             # opens http://127.0.0.1:8765 (local only)
+python3 -m behavioreval ui             # opens http://127.0.0.1:8930 (local only)
 ```
 
 `check` tells you exactly what is still missing. `.env` is ignored by git and never leaves your machine.
