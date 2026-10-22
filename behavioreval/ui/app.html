@@ -60,6 +60,7 @@
   .scrim { position:fixed; inset:0; background:rgba(0,0,0,.25); z-index:8; display:none; } .scrim.on { display:block; }
   .kv { display:grid; grid-template-columns:150px 1fr; gap:6px 12px; font-size:13px; } .kv div:nth-child(odd) { color:var(--muted); }
   .chk { display:inline-flex; align-items:center; gap:6px; margin-right:12px; }
+  .notice { border-left:4px solid var(--warn); } .notice.bad { border-left-color:var(--bad); } .notice.ok { border-left-color:var(--good); }
   .progress { height:6px; background:var(--line); border-radius:3px; overflow:hidden; } .progress i { display:block; height:100%; background:var(--accent); }
   @media (max-width: 760px) { nav { display:none; } .bar { left:0; } main { padding:16px; } }
 </style>
@@ -80,6 +81,7 @@
 <section id="page-home">
   <h1>Test the assistant the way a person would</h1>
   <p class="sub">A simulated user runs your tests against the assistant on dev, in your own Chrome, as you. A judge grades each conversation; you add your own verdict.</p>
+  <div id="home-account" class="card" style="margin:0 0 14px"></div>
   <div class="steps">
     <div class="step"><div class="k">Before you start</div><h3 id="home-ready">Checking…</h3><div id="home-checks"></div><div class="row" style="margin-top:10px"><button class="btn" onclick="go('settings')">Open settings</button><button class="btn primary" id="home-chrome-btn" onclick="startChrome()">Start my Chrome</button></div></div>
     <div class="step"><div class="k">Step 1</div><h3>Pick tests</h3><p class="muted">Each category has an <b>open</b> test (just the prompt) and a <b>preset</b> test (conditions in the prompt). Tick the ones you want, or add your own.</p><button class="btn primary" onclick="go('tests')">Go to tests</button></div>
@@ -99,6 +101,7 @@
 <section id="page-run" hidden>
   <h1>Run</h1>
   <p class="sub" id="run-as"></p>
+  <div id="run-account" class="card" style="margin:0 0 14px"></div>
   <div class="grid2">
     <div class="card">
       <h2 style="margin-top:0">Batch</h2>
@@ -249,6 +252,18 @@ function fillMe() {
 function noteMe() { const p = myProfile(); $("me-note").textContent = onChrome() ? (p.email || "no dev account set") : `${(p.accounts || []).length} account(s)`; }
 async function switchProfile() { store.set("profile", me()); noteMe(); await loadTests(); go((location.hash || "#home").slice(1)); }
 
+// ── which account am I on? (the assistant's memory is per account) ────────
+function accountNotice() {
+  const p = myProfile(); const ch = STATE.chrome || {};
+  if (!onChrome()) return {cls: "ok", text: `Runs use the test accounts bound to <b>${esc(p.name || me())}</b>.`};
+  const prof = (ch.profiles || []).find(c => c.dir === p.chrome_profile);
+  const signed = prof ? (prof.email || prof.name) : "";
+  if (!p.email || !p.chrome_profile) return {cls: "bad", text: `<b>Set your dev account and Chrome profile first</b> (Settings → Who I am). The assistant's memory lives on the account, so running as the wrong one gives different behaviour and pollutes someone's memory.`};
+  if (prof && prof.email && p.email && prof.email.toLowerCase() !== p.email.toLowerCase()) return {cls: "bad", text: `<b>Account mismatch:</b> your profile says <b>${esc(p.email)}</b> but Chrome profile <b>${esc(p.chrome_profile)}</b> is signed in as <b>${esc(prof.email)}</b>. The assistant's memory is per account — fix one of them in Settings before running.`};
+  return {cls: "ok", text: `Running as <b>${esc(p.name || me())}</b> on <b>${esc(p.email)}</b> (Chrome profile ${esc(p.chrome_profile)}${signed ? ", signed in as " + esc(signed) : ""}). Keep using this account: the assistant's memory is per account, and a different one behaves differently.`};
+}
+function paintNotice(id) { const n = accountNotice(); const el = $(id); el.className = "card notice " + n.cls; el.innerHTML = n.text; }
+
 // ── home ──────────────────────────────────────────────────────────────────
 async function renderHome() {
   STATE = await api("/api/state");
@@ -257,6 +272,7 @@ async function renderHome() {
   $("home-ready").className = bad.length ? "warn" : "good";
   $("home-checks").innerHTML = checks.map(c => `<div class="check"><span class="dot ${c.ok ? "ok" : "no"}"></span><span>${esc(c.what)}</span>${c.ok ? "" : `<span class="muted small">— ${esc(c.detail)}</span>`}</div>`).join("");
   $("home-chrome-btn").hidden = !(onChrome() && !(STATE.chrome || {}).up);
+  paintNotice("home-account");
   RUNS = await api("/api/runs");
   $("home-runs").innerHTML = RUNS.slice(0, 5).map(r => `<div class="row" style="justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line)"><span>${esc(r.name)} ${r.status === "running" ? '<span class="pill running">running</span>' : ""}</span><span class="muted small">${r.conversations} conversations · ${Object.entries(r.verdicts).map(([k, v]) => k + " " + v).join(", ") || "—"} · ${r.annotated} reviewed</span>${r.conversations ? `<button class="btn small" onclick="openResults('${esc(r.name)}')">open</button>` : ""}</div>`).join("") || "no runs yet";
 }
@@ -338,6 +354,7 @@ async function previewTest() { try { const r = await api("/api/preview", {scenar
 function renderRunForm() {
   const p = myProfile();
   $("run-as").textContent = onChrome() ? ((STATE.chrome || {}).up ? `Runs in your Chrome as ${p.email || "your account"}, one conversation at a time. You can watch the window.` : "Your Chrome is not running yet — start it in Settings (or on Home).") : `Runs on this profile's test accounts.`;
+  paintNotice("run-account");
   const sel = [...SEL].filter(id => TESTS.some(t => t.id === id));
   $("run-summary").innerHTML = sel.length ? `<b>${sel.length} test(s)</b>: ${sel.map(id => `<code>${esc(id)}</code>`).join(", ")} <a href="#" onclick="go('tests');return false">change</a>` : 'No tests selected yet. <a href="#" onclick="go(\'tests\');return false">Pick some</a>.';
   colChips($("run-cols"));
