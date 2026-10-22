@@ -42,7 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     u.add_argument("--port", type=int)
     u.add_argument("--no-browser", dest="no_browser", action="store_true")
     r = sub.add_parser("run", help="run scenarios as one profile on its accounts and judge the conversations")
-    r.add_argument("--scenarios", default="all", help="a set name under scenarios/ (daily, complex, ...), a jsonl path, or all")
+    r.add_argument("--scenarios", default="all", help="a set name under scenarios/ (local, restaurants, trips, ...), a jsonl path, or all")
     r.add_argument("--only", action="append", help="scenario id; repeatable")
     r.add_argument("--account", action="append", help="use only these accounts (repeatable); default: the profile's accounts, else every unbound account")
     r.add_argument("--runs", type=int, default=1, help="conversations per scenario per column")

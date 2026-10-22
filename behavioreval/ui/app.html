@@ -5,252 +5,203 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Behavior Eval Tool</title>
 <style>
-  :root { --bg:#fff; --fg:#1b1b1f; --muted:#6b6f76; --line:#e3e5e8; --card:#f7f8fa; --accent:#2457d6; --good:#1b8a3c; --bad:#c0392b; --warn:#b7791f; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#141518; --fg:#e8e8ea; --muted:#9a9ea6; --line:#2c2f35; --card:#1d1f24; --accent:#7aa2ff; --good:#4cc26b; --bad:#ef6a5c; --warn:#e2a93b; } }
+  :root { --bg:#f5f6f8; --panel:#ffffff; --fg:#17191d; --muted:#6a6f78; --line:#e2e5ea; --accent:#2f5fd0; --accent-soft:#e8eefc; --good:#1f8a46; --good-soft:#e6f4ea; --bad:#c23b2f; --bad-soft:#fbe9e7; --warn:#a56a00; --warn-soft:#fff3d9; --user:#eef2fb; --assist:#edf6ee; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#131417; --panel:#1b1d22; --fg:#e9e9ec; --muted:#9a9ea7; --line:#2b2e35; --accent:#8db0ff; --accent-soft:#1f2a44; --good:#5ccb7c; --good-soft:#1c2f23; --bad:#f07d71; --bad-soft:#3a2220; --warn:#e4b04e; --warn-soft:#3a2f16; --user:#1f2636; --assist:#1e2c22; } }
   * { box-sizing: border-box; }
-  body { margin:0; font: 14px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--fg); }
-  header { display:flex; gap:14px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:2; flex-wrap:wrap; }
-  header h1 { font-size:16px; margin:0 12px 0 0; }
-  header > button { background:none; border:none; color:var(--muted); font-size:14px; padding:6px 4px; cursor:pointer; border-bottom:2px solid transparent; }
-  header > button.on { color:var(--fg); border-bottom-color:var(--accent); }
-  #who { margin-left:auto; display:flex; gap:8px; align-items:center; }
-  main { padding:16px; max-width:1300px; margin:0 auto; }
-  section { display:none; } section.on { display:block; }
-  table { border-collapse:collapse; width:100%; }
-  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--muted); font-weight:600; font-size:12px; }
-  tr.row:hover { background:var(--card); cursor:pointer; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin:10px 0; }
-  .muted { color:var(--muted); } .good { color:var(--good); } .bad { color:var(--bad); } .warn { color:var(--warn); }
-  .pill { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; border:1px solid var(--line); margin-right:4px; }
-  .pill.PASS { color:var(--good); border-color:var(--good); } .pill.FAIL { color:var(--bad); border-color:var(--bad); } .pill.UNSURE, .pill.UNREADABLE { color:var(--warn); border-color:var(--warn); }
-  label { display:block; margin:8px 0 2px; color:var(--muted); font-size:12px; }
-  input[type=text], input[type=number], textarea, select { width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); font:inherit; }
-  header select { width:auto; }
-  textarea { min-height:60px; resize:vertical; }
-  .btn { padding:7px 14px; border-radius:6px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; font:inherit; }
-  .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
-  .btn.danger { color:var(--bad); }
-  .grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; } @media (max-width: 900px) { .grid { grid-template-columns:1fr; } }
-  .turn { margin:10px 0; padding:8px 10px; border-left:3px solid var(--line); }
-  .turn.user { border-left-color:var(--accent); } .turn.assistant { border-left-color:var(--good); }
-  details { margin:4px 0; } summary { cursor:pointer; color:var(--muted); }
-  pre { white-space:pre-wrap; word-break:break-word; background:var(--card); padding:8px; border-radius:6px; font-size:12px; max-height:360px; overflow:auto; }
-  .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0; }
-  .help { font-size:12px; color:var(--muted); }
-  .chk { display:inline-flex; align-items:center; gap:4px; margin-right:12px; }
-  .box { max-height:300px; overflow:auto; border:1px solid var(--line); border-radius:6px; padding:6px; }
-  .facts label { margin-top:4px; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body { margin:0; font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--fg); display:flex; }
+  nav { width: 200px; flex: 0 0 200px; background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; padding:14px 10px; gap:4px; position:sticky; top:0; height:100vh; }
+  nav .brand { font-weight:700; font-size:15px; padding:6px 10px 14px; }
+  nav button { text-align:left; background:none; border:none; color:var(--fg); font:inherit; padding:9px 12px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:10px; }
+  nav button .n { width:20px; height:20px; border-radius:50%; background:var(--line); color:var(--muted); font-size:12px; display:inline-flex; align-items:center; justify-content:center; font-weight:600; }
+  nav button.on { background:var(--accent-soft); color:var(--accent); font-weight:600; } nav button.on .n { background:var(--accent); color:#fff; }
+  nav .spacer { flex:1; }
+  nav .me { padding:10px 12px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); }
+  nav .me select { width:100%; margin-top:6px; }
+  main { flex:1; min-width:0; padding:22px 28px 90px; max-width:1200px; }
+  h1 { font-size:22px; margin:0 0 4px; } h2 { font-size:16px; margin:22px 0 8px; } .sub { color:var(--muted); margin:0 0 16px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:12px 0; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; } @media (max-width: 960px) { .grid2 { grid-template-columns:1fr; } }
+  .btn { padding:9px 16px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--fg); cursor:pointer; font:inherit; font-weight:500; }
+  .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); } .btn.primary:disabled { opacity:.5; cursor:not-allowed; }
+  .btn.danger { color:var(--bad); } .btn.small { padding:5px 10px; font-size:13px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .muted { color:var(--muted); } .good { color:var(--good); } .bad { color:var(--bad); } .warn { color:var(--warn); } .small { font-size:12px; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600; background:var(--line); color:var(--muted); }
+  .pill.PASS { background:var(--good-soft); color:var(--good); } .pill.FAIL { background:var(--bad-soft); color:var(--bad); } .pill.UNSURE, .pill.UNREADABLE, .pill.running { background:var(--warn-soft); color:var(--warn); }
+  .pill.open { background:var(--accent-soft); color:var(--accent); } .pill.preset { background:var(--warn-soft); color:var(--warn); }
+  label { display:block; margin:10px 0 3px; color:var(--muted); font-size:12px; }
+  input[type=text], input[type=number], textarea, select { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--fg); font:inherit; }
+  textarea { min-height:64px; resize:vertical; }
+  .check { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); } .check:last-child { border-bottom:0; }
+  .dot { width:10px; height:10px; border-radius:50%; background:var(--line); flex:0 0 10px; } .dot.ok { background:var(--good); } .dot.no { background:var(--bad); }
+  .steps { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px; }
+  .step { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .step .k { font-size:12px; color:var(--muted); font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
+  .step h3 { margin:6px 0 8px; font-size:16px; }
+  .cat { margin:18px 0 8px; display:flex; align-items:baseline; gap:10px; } .cat h2 { margin:0; } .cat a { font-size:12px; }
+  .tests { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:12px; }
+  .test { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; cursor:pointer; display:flex; gap:10px; align-items:flex-start; min-width:0; }
+  .test.sel { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+  .test input { margin-top:3px; }
+  .test .t { flex:1; min-width:0; } .test .t .o { font-weight:500; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .test .meta { display:flex; gap:8px; margin-top:6px; align-items:center; font-size:12px; color:var(--muted); flex-wrap:wrap; }
+  .bar { position:fixed; left:200px; right:0; bottom:0; background:var(--panel); border-top:1px solid var(--line); padding:12px 28px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; z-index:5; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; } .chip { border:1px solid var(--line); border-radius:999px; padding:4px 12px; cursor:pointer; font-size:13px; user-select:none; } .chip.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  table { border-collapse:collapse; width:100%; } th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; } th { color:var(--muted); font-weight:600; font-size:12px; }
+  tr.r:hover { background:var(--bg); cursor:pointer; }
+  .turn { margin:10px 0; padding:10px 12px; border-radius:10px; } .turn.user { background:var(--user); } .turn.assistant { background:var(--assist); }
+  .turn .who { font-size:12px; color:var(--muted); margin-bottom:4px; display:flex; gap:10px; flex-wrap:wrap; }
+  details { margin:4px 0; } summary { cursor:pointer; color:var(--muted); font-size:13px; }
+  pre { white-space:pre-wrap; word-break:break-word; background:var(--bg); padding:8px 10px; border-radius:8px; font-size:12px; max-height:320px; overflow:auto; }
+  .drawer { position:fixed; top:0; right:0; width:min(760px, 100%); height:100vh; background:var(--panel); border-left:1px solid var(--line); box-shadow:-12px 0 30px rgba(0,0,0,.12); padding:18px 22px 40px; overflow:auto; z-index:9; display:none; }
+  .drawer.on { display:block; }
+  .scrim { position:fixed; inset:0; background:rgba(0,0,0,.25); z-index:8; display:none; } .scrim.on { display:block; }
+  .kv { display:grid; grid-template-columns:150px 1fr; gap:6px 12px; font-size:13px; } .kv div:nth-child(odd) { color:var(--muted); }
+  .chk { display:inline-flex; align-items:center; gap:6px; margin-right:12px; }
+  .progress { height:6px; background:var(--line); border-radius:3px; overflow:hidden; } .progress i { display:block; height:100%; background:var(--accent); }
+  @media (max-width: 760px) { nav { display:none; } .bar { left:0; } main { padding:16px; } }
 </style>
 </head>
 <body>
-<header>
-  <h1>Behavior Eval Tool</h1>
-  <button data-tab="profiles">Profiles</button>
-  <button data-tab="scenarios" class="on">Scenarios</button>
-  <button data-tab="run">Run</button>
-  <button data-tab="chat">Chat</button>
-  <button data-tab="results">Results</button>
-  <button data-tab="share">Share</button>
-  <button data-tab="setup">Setup</button>
-  <span id="who"><span class="help">I am</span><select id="who-profile" onchange="switchProfile()"></select><span id="who-note" class="help"></span></span>
-</header>
+<nav>
+  <div class="brand">Behavior Eval Tool</div>
+  <button data-page="home" class="on">Home</button>
+  <button data-page="tests"><span class="n">1</span> Tests</button>
+  <button data-page="run"><span class="n">2</span> Run</button>
+  <button data-page="results"><span class="n">3</span> Results</button>
+  <div class="spacer"></div>
+  <button data-page="settings">Settings</button>
+  <div class="me">I am<select id="me" onchange="switchProfile()"></select><div id="me-note"></div></div>
+</nav>
 <main>
 
-<section id="profiles">
-  <div class="help" style="margin-bottom:8px">A profile is the simulated person you run as: their facts, how they type, what they never do, and <b>the test accounts that belong to them</b>.
-    An account bound to a profile is used by nobody else, so the assistant's memory on it stays that one person's. Pick yours at the top right; make one if you have none.</div>
-  <div class="toolbar"><button class="btn primary" onclick="newProfile()">New profile</button><span class="help" id="pf-count"></span></div>
-  <table id="pf-table"><thead><tr><th>id</th><th>name</th><th>home</th><th>account / Chrome</th><th>check</th></tr></thead><tbody></tbody></table>
-  <div id="pf-editor" class="card" style="display:none">
-    <div class="toolbar"><strong id="pf-title">Profile</strong></div>
-    <div class="grid">
-      <div>
-        <label>id (lowercase, no spaces — e.g. your first name)</label><input type="text" id="p-id">
-        <div class="facts" id="p-facts"></div>
-        <label>other facts — JSON, optional (any key becomes a {placeholder})</label><textarea id="p-extra" placeholder='{"pets": "a corgi named Bo"}'></textarea>
-      </div>
-      <div>
-        <label>how this person types to the assistant</label><input type="text" id="p-style" placeholder="short, casual messages; lowercase; one thing at a time">
-        <label>things they never do in the chat — one per line</label><textarea id="p-limits"></textarea>
-        <label>profile page the assistant should know (written into the account before each conversation) — allowed fields: <span id="p-fields-help"></span></label>
-        <textarea id="p-profile" placeholder='{"name": "…", "home": "…", "family": "…", "hobbies": "…"}'></textarea>
-        <label>my dev account (the email this person is signed in as; recorded on every conversation)</label><input type="text" id="p-email" placeholder="you@hark.com">
-        <label>my Chrome profile signed in to dev (the tool copies it and drives the copy)</label><select id="p-chrome"></select>
-        <div id="p-accounts-wrap"><label>test accounts that belong to this person — only for the eval_system endpoint (greyed = already someone else's)</label>
-        <div id="p-accounts" class="box"></div></div>
-      </div>
-    </div>
-    <div class="toolbar">
-      <button class="btn primary" onclick="saveProfile()">Save</button>
-      <button class="btn" onclick="document.getElementById('pf-editor').style.display='none'">Close</button>
-      <button class="btn danger" onclick="deleteProfile()" style="margin-left:auto">Delete</button>
-      <span id="pf-msg" class="help"></span>
-    </div>
+<section id="page-home">
+  <h1>Test the assistant the way a person would</h1>
+  <p class="sub">A simulated user runs your tests against the assistant on dev, in your own Chrome, as you. A judge grades each conversation; you add your own verdict.</p>
+  <div class="steps">
+    <div class="step"><div class="k">Before you start</div><h3 id="home-ready">Checking…</h3><div id="home-checks"></div><div class="row" style="margin-top:10px"><button class="btn" onclick="go('settings')">Open settings</button><button class="btn primary" id="home-chrome-btn" onclick="startChrome()">Start my Chrome</button></div></div>
+    <div class="step"><div class="k">Step 1</div><h3>Pick tests</h3><p class="muted">Each category has an <b>open</b> test (just the prompt) and a <b>preset</b> test (conditions in the prompt). Tick the ones you want, or add your own.</p><button class="btn primary" onclick="go('tests')">Go to tests</button></div>
+    <div class="step"><div class="k">Step 2</div><h3>Run</h3><p class="muted">A batch runs one conversation after another in your Chrome. Or watch one live and steer it turn by turn.</p><button class="btn" onclick="go('run')">Go to run</button></div>
+    <div class="step"><div class="k">Step 3</div><h3>Review</h3><p class="muted">Read each conversation with its tool calls and the judge's reasons, give your verdict, export a CSV.</p><button class="btn" onclick="go('results')">Go to results</button></div>
   </div>
+  <h2>Recent runs</h2>
+  <div id="home-runs" class="card muted">no runs yet</div>
 </section>
 
-<section id="scenarios" class="on">
-  <div class="toolbar">
-    <button class="btn primary" onclick="newScenario()">New scenario</button>
-    <select id="sc-set-filter" onchange="renderScenarios()"><option value="">all sets</option></select>
-    <input type="text" id="sc-search" placeholder="search…" oninput="renderScenarios()" style="max-width:260px">
-    <span class="help" id="sc-count"></span>
-  </div>
-  <table id="sc-table"><thead><tr><th>id</th><th>opening</th><th>turns</th><th>beats</th><th>tags</th><th>lint</th></tr></thead><tbody></tbody></table>
-
-  <div id="sc-editor" class="card" style="display:none">
-    <div class="toolbar"><strong id="sc-editor-title">Scenario</strong><span class="help">Only <b>opening</b> reaches the assistant. Everything else briefs the simulated user and the judge. Use {name} {home} {car} {household} … for facts from the profile.</span></div>
-    <div class="grid">
-      <div>
-        <label>set (file under scenarios/)</label><input type="text" id="f-set" placeholder="daily">
-        <label>id (set/number_slug)</label><input type="text" id="f-id" placeholder="daily/07_dry_cleaner">
-        <label>opening — the first message, sent exactly as written</label><textarea id="f-opening"></textarea>
-        <label>situation — what is going on in the person's life (the assistant never sees this)</label><textarea id="f-situation"></textarea>
-        <label>goal — what they want out of the conversation</label><textarea id="f-goal"></textarea>
-        <label>done_when — when they consider it done (also the judge's hard requirement)</label><textarea id="f-done_when"></textarea>
-        <label>leaves — what running it creates on the account (so cleanup can undo it); "nothing" if nothing</label><input type="text" id="f-leaves">
-      </div>
-      <div>
-        <label>hidden — facts not in the opening, one per line, given out only when asked</label><textarea id="f-hidden" style="min-height:90px"></textarea>
-        <label>beats — ordered sub-goals, one per line (optional)</label><textarea id="f-beats"></textarea>
-        <label>reveal — how hidden facts come out (optional)</label><input type="text" id="f-reveal" placeholder="only when the assistant asks; one fact per reply">
-        <label>max_turns (optional; config default otherwise)</label><input type="number" id="f-max_turns" min="1" max="30">
-        <label>tags — comma separated</label><input type="text" id="f-tags" placeholder="local, calendar">
-        <label>user overrides — JSON of facts that differ from the profile for this scenario (optional)</label><textarea id="f-user" placeholder='{"car": "2016 Subaru Outback"}'></textarea>
-        <label>extra judge criteria — one per line (optional)</label><textarea id="f-criteria"></textarea>
-      </div>
-    </div>
-    <div class="toolbar">
-      <button class="btn primary" onclick="saveScenario()">Save</button>
-      <button class="btn" onclick="previewScenario()">Preview the user model's briefing</button>
-      <button class="btn" onclick="document.getElementById('sc-editor').style.display='none'">Close</button>
-      <button class="btn danger" onclick="deleteScenario()" style="margin-left:auto">Delete</button>
-      <span id="sc-msg" class="help"></span>
-    </div>
-    <div id="sc-preview" style="display:none">
-      <label>assistant replies to simulate (one per line) — then ask the user model what it would say next</label>
-      <textarea id="f-assistant" placeholder="Which city are you in?"></textarea>
-      <div class="toolbar"><button class="btn" onclick="previewScenario(true)">Ask the user model (uses OpenRouter)</button><span id="sc-next" class="help"></span></div>
-      <pre id="sc-prompt"></pre>
-    </div>
-  </div>
+<section id="page-tests" hidden>
+  <div class="row" style="justify-content:space-between"><div><h1>Tests</h1><p class="sub">Tick what to run. Click a card to read or edit it. <span id="tests-lint" class="small"></span></p></div>
+    <div class="row"><input type="text" id="tests-search" placeholder="search…" oninput="renderTests()" style="width:220px"><button class="btn" onclick="newTest()">+ New test</button></div></div>
+  <div id="tests-list"></div>
 </section>
 
-<section id="run">
-  <div class="grid">
+<section id="page-run" hidden>
+  <h1>Run</h1>
+  <p class="sub" id="run-as"></p>
+  <div class="grid2">
     <div class="card">
-      <strong>Start a run</strong> <span class="help" id="run-as"></span>
-      <label>1. models to test (the assistant columns; every scenario runs once per model)</label>
-      <div id="run-columns"></div>
-      <input type="text" id="run-columns-extra" placeholder="other columns, comma separated: slot7, claude-sonnet-5 …">
-      <label>2. scenarios (<a href="#" onclick="selectAll(true);return false">all</a> / <a href="#" onclick="selectAll(false);return false">none</a>; or "select set")</label>
-      <div id="run-scenarios" class="box" style="max-height:320px"></div>
-      <div class="grid">
-        <div><label>repeats per scenario</label><input type="number" id="run-runs" value="1" min="1" max="10"></div>
-        <div><label>parallel conversations (never two on one account)</label><input type="number" id="run-parallel" value="4" min="1" max="20"></div>
-        <div><label>max user turns (blank = config)</label><input type="number" id="run-turns" min="1" max="30"></div>
-        <div><label>tag (name of the run)</label><input type="text" id="run-tag"></div>
-      </div>
-      <div id="run-accounts-wrap"><label>3. accounts — this profile's accounts; leave all unticked to use every one of them</label>
-      <div id="run-accounts" class="box" style="max-height:120px"></div></div>
-      <div id="run-chrome-note" class="help" style="margin-top:6px"></div>
-      <div class="toolbar" style="margin-top:8px">
-        <span class="chk"><input type="checkbox" id="run-judge" checked> judge each conversation</span>
-        <span class="chk"><input type="checkbox" id="run-calibrate"> calibrate memory first</span>
-        <span class="chk"><input type="checkbox" id="run-cleanup"> clean up after</span>
-      </div>
-      <div class="toolbar"><button class="btn primary" onclick="startRun()">Start</button><span id="run-plan" class="help"></span><span id="run-msg" class="help"></span></div>
+      <h2 style="margin-top:0">Batch</h2>
+      <div id="run-summary" class="muted"></div>
+      <label>models to test</label><div class="chips" id="run-cols"></div>
+      <input type="text" id="run-cols-extra" placeholder="other model ids, comma separated (optional)" style="margin-top:6px">
+      <div class="grid2" style="margin-top:4px"><div><label>repeats per test</label><input type="number" id="run-runs" value="1" min="1" max="10"></div><div><label>name this run</label><input type="text" id="run-tag"></div></div>
+      <details style="margin-top:8px"><summary>more options</summary>
+        <div class="row" style="margin-top:8px"><span class="chk"><input type="checkbox" id="run-judge" checked> judge each conversation</span><span class="chk"><input type="checkbox" id="run-calibrate"> calibrate memory first</span><span class="chk"><input type="checkbox" id="run-cleanup"> clean up after</span></div>
+        <label>max user turns (blank = each test's own)</label><input type="number" id="run-turns" min="1" max="30" style="max-width:160px">
+      </details>
+      <div class="row" style="margin-top:14px"><button class="btn primary" id="run-start" onclick="startRun()">Start batch</button><span id="run-msg" class="muted small"></span></div>
     </div>
     <div class="card">
-      <strong>Runs</strong> <span class="help">(newest first; click one to read its log)</span>
-      <table id="runs-table"><thead><tr><th>run</th><th>profile</th><th>status</th><th>conversations</th><th>verdicts</th><th>annotated</th><th></th></tr></thead><tbody></tbody></table>
-      <pre id="run-log" style="display:none"></pre>
-    </div>
-  </div>
-</section>
-
-<section id="results">
-  <div class="toolbar">
-    <select id="res-run" onchange="loadRun()"></select>
-    <select id="res-filter" onchange="renderRun()"><option value="">all</option><option value="PASS">judge PASS</option><option value="FAIL">judge FAIL</option><option value="UNREADABLE">judge unreadable</option><option value="error">assistant errors</option><option value="unannotated">not yet annotated</option></select>
-    <a id="res-export" class="btn" href="#" download>Export CSV</a>
-    <span id="res-summary" class="help"></span>
-  </div>
-  <table id="res-table"><thead><tr><th>scenario</th><th>model</th><th>profile</th><th>account</th><th>turns</th><th>stop</th><th>judge</th><th>score</th><th>flags</th><th>human</th></tr></thead><tbody></tbody></table>
-  <div id="conv" class="card" style="display:none">
-    <div class="toolbar"><strong id="conv-title"></strong><button class="btn" style="margin-left:auto" onclick="document.getElementById('conv').style.display='none'">Close</button></div>
-    <div class="grid">
-      <div id="conv-turns"></div>
-      <div>
-        <div class="card"><strong>Judge</strong><div id="conv-judge"></div></div>
-        <div class="card"><strong>Your verdict</strong>
-          <div class="toolbar" style="margin-top:6px">
-            <label class="chk"><input type="radio" name="ann-v" value="PASS"> PASS</label>
-            <label class="chk"><input type="radio" name="ann-v" value="FAIL"> FAIL</label>
-            <label class="chk"><input type="radio" name="ann-v" value="UNSURE"> unsure</label>
-          </div>
-          <div id="ann-issues"></div>
-          <label>comment</label><textarea id="ann-comment"></textarea>
-          <label>your name</label><input type="text" id="ann-by">
-          <div class="toolbar"><button class="btn primary" onclick="saveAnnotation()">Save</button><span id="ann-msg" class="help"></span></div>
-        </div>
-        <details><summary>what the simulated user was told (hidden facts, goal)</summary><pre id="conv-brief"></pre></details>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="chat">
-  <div class="grid">
-    <div class="card">
-      <strong>Live conversation</strong> <span class="help">— the same simulated user, one turn at a time, with you watching. After each reply the user model proposes the next line; send it, edit it, write your own, or let it run on its own.</span>
-      <label>scenario</label><select id="chat-scenario"></select>
+      <h2 style="margin-top:0">Watch one live</h2>
+      <p class="muted small">One test, one turn at a time. After each reply the simulated user proposes its next line; you send it, change it, or let it run.</p>
+      <label>test</label><select id="chat-scenario"></select>
       <label>model</label><select id="chat-column"></select>
-      <div class="grid"><div><label>max user turns (blank = the scenario's)</label><input type="number" id="chat-turns" min="1" max="30"></div>
-        <div><label>&nbsp;</label><span class="chk"><input type="checkbox" id="chat-auto"> let it run on its own from the start</span></div></div>
-      <div class="toolbar"><button class="btn primary" id="chat-start" onclick="chatStart()">Start</button><span id="chat-msg" class="help"></span></div>
-      <div id="chat-brief" class="help" style="white-space:pre-wrap"></div>
-    </div>
-    <div class="card">
-      <div class="toolbar"><strong>Conversation</strong><span id="chat-state" class="pill"></span><span id="chat-meta" class="help"></span></div>
-      <div id="chat-turns"></div>
-      <div id="chat-your-turn" style="display:none">
-        <label>the user model proposes (<span id="chat-why" class="help"></span>) — edit if you like, then send</label>
-        <textarea id="chat-text"></textarea>
-        <div class="toolbar">
-          <button class="btn primary" onclick="chatSend(false)">Send</button>
-          <button class="btn" onclick="chatSend(true)">Send as last line and end</button>
-          <button class="btn" onclick="chatAct('auto', {on: true})">Let it run on its own</button>
-          <button class="btn danger" onclick="chatAct('end')" style="margin-left:auto">End now</button>
-        </div>
-      </div>
-      <div id="chat-done" style="display:none"><div id="chat-judge"></div><div class="toolbar"><button class="btn" onclick="chatOpenResult()">Open in Results</button></div></div>
-      <details><summary>log</summary><pre id="chat-log"></pre></details>
+      <div class="row" style="margin-top:12px"><button class="btn primary" id="chat-start" onclick="chatStart()">Start live</button><span class="chk"><input type="checkbox" id="chat-auto"> hands-off from the start</span><span id="chat-msg" class="muted small"></span></div>
     </div>
   </div>
-</section>
 
-<section id="share">
-  <div class="card"><strong>Share with the team</strong>
-    <div class="help">Scenarios and profiles live in this folder, which is a copy of the team's repository. <b>Get updates</b> brings in what others added; <b>Share my changes</b> sends yours. Put your scenarios in a set named after you or the topic (<code>scenarios/anderson_shopping.jsonl</code>) and they never collide with anyone else's.</div>
-    <div id="share-status" class="help" style="margin:8px 0"></div>
-    <div class="toolbar"><button class="btn" onclick="sharePull()">Get updates</button></div>
-    <div class="grid"><div><label>your name</label><input type="text" id="share-who"></div><div><label>what you added (one line)</label><input type="text" id="share-msg" placeholder="3 shopping scenarios"></div></div>
-    <div class="toolbar"><button class="btn primary" onclick="sharePush()">Share my changes</button><span id="share-result" class="help"></span></div>
+  <div id="chat-box" class="card" hidden>
+    <div class="row" style="justify-content:space-between"><div class="row"><strong>Live conversation</strong><span id="chat-state" class="pill"></span><span id="chat-meta" class="muted small"></span></div><button class="btn small danger" onclick="chatAct('end')">End now</button></div>
+    <div id="chat-turns"></div>
+    <div id="chat-your-turn" hidden>
+      <label>the simulated user wants to say (<span id="chat-why"></span>) — change it if you like</label>
+      <textarea id="chat-text"></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn primary" onclick="chatSend(false)">Send</button><button class="btn" onclick="chatSend(true)">Send as the last line</button><button class="btn" onclick="chatAct('auto', {on: true})">Let it run on its own</button></div>
+    </div>
+    <div id="chat-done" hidden><div id="chat-judge" style="margin-top:8px"></div><button class="btn" style="margin-top:8px" onclick="chatOpenResult()">Open in results</button></div>
+    <details><summary>log</summary><pre id="chat-log"></pre></details>
   </div>
+
+  <h2>Runs</h2>
+  <div class="card"><table id="runs-table"><thead><tr><th>run</th><th>status</th><th>conversations</th><th>judge</th><th>reviewed</th><th></th></tr></thead><tbody></tbody></table><pre id="run-log" hidden></pre></div>
 </section>
 
-<section id="setup">
-  <div class="card"><strong>Is everything in place?</strong><table id="setup-checks"><tbody></tbody></table>
-    <div class="help">Fix anything MISSING, then reload this page. The README has the steps.</div></div>
-  <div class="card" id="setup-chrome"><strong>Your Chrome</strong>
-    <div class="help">Runs happen in a second Chrome that the tool starts from a copy of the Chrome profile you use for dev (sign-in included). Your everyday Chrome keeps running. Pick the profile that is signed in to dev and start it; leave that window alone during runs.</div>
-    <div class="toolbar"><select id="setup-chrome-profile" style="max-width:420px"></select><button class="btn primary" onclick="startChrome()">Start the tool's Chrome</button><span id="setup-chrome-msg" class="help"></span></div></div>
-  <div class="card" id="setup-accounts-card"><strong>Accounts (accounts.tsv) and who they belong to — eval_system endpoint only</strong><table id="setup-accounts"><tbody></tbody></table></div>
-  <div class="card"><strong>Settings (config.json)</strong><table id="setup-config"><tbody></tbody></table></div>
+<section id="page-results" hidden>
+  <div class="row" style="justify-content:space-between"><div><h1>Results</h1><p class="sub" id="res-summary"></p></div>
+    <div class="row"><select id="res-run" onchange="loadRun()" style="width:auto"></select><select id="res-filter" onchange="renderRun()" style="width:auto"><option value="">all</option><option value="PASS">judge PASS</option><option value="FAIL">judge FAIL</option><option value="error">errors</option><option value="unreviewed">not yet reviewed</option></select><a id="res-export" class="btn" href="#" download>Export CSV</a></div></div>
+  <div class="card"><div class="row" style="justify-content:space-between; margin-bottom:8px"><span id="res-progress-text" class="muted small"></span><button class="btn small" onclick="nextUnreviewed()">Next not reviewed →</button></div><div class="progress"><i id="res-progress" style="width:0"></i></div>
+  <table id="res-table"><thead><tr><th>test</th><th>model</th><th>turns</th><th>stop</th><th>judge</th><th>score</th><th>flags</th><th>you</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section id="page-settings" hidden>
+  <h1>Settings</h1>
+  <div class="grid2">
+    <div class="card"><h2 style="margin-top:0">Is everything ready?</h2><div id="set-checks"></div></div>
+    <div class="card"><h2 style="margin-top:0">My Chrome</h2><p class="muted small">Runs happen in a second Chrome started from a copy of the profile you use for dev (sign-in included). Your everyday Chrome keeps running. Pick the profile signed in to dev, start it, and leave that window alone during runs.</p>
+      <select id="set-chrome-profile"></select><div class="row" style="margin-top:8px"><button class="btn primary" onclick="startChrome()">Start my Chrome</button><span id="set-chrome-msg" class="muted small"></span></div></div>
+  </div>
+  <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Who I am in the conversations</h2><div class="row"><select id="pf-pick" onchange="editProfile(this.value)" style="width:auto"></select><button class="btn small" onclick="newProfile()">+ New</button></div></div>
+    <p class="muted small">The simulated person's facts (what the assistant should know about you; they fill <code>{home}</code>, <code>{car}</code>, <code>{calendar}</code> in tests), how they type, what they never do, your dev account and Chrome profile. Keep real third parties out.</p>
+    <div class="grid2">
+      <div><label>id (lowercase, your first name)</label><input type="text" id="p-id"><div id="p-facts"></div><label>other facts (JSON, optional)</label><textarea id="p-extra" placeholder='{"pets": "a corgi named Bo"}'></textarea></div>
+      <div><label>how this person types</label><input type="text" id="p-style" placeholder="short, casual; one thing at a time"><label>things they never do in the chat (one per line)</label><textarea id="p-limits"></textarea>
+        <label>profile page the assistant should know (JSON; fields: <span id="p-fields-help"></span>)</label><textarea id="p-profile"></textarea>
+        <label>my dev account email</label><input type="text" id="p-email" placeholder="you@hark.com"><label>my Chrome profile signed in to dev</label><select id="p-chrome"></select>
+        <div id="p-accounts-wrap" hidden><label>test accounts (eval_system endpoint only)</label><div id="p-accounts"></div></div></div>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn primary" onclick="saveProfile()">Save profile</button><button class="btn danger small" onclick="deleteProfile()">Delete</button><span id="pf-msg" class="muted small"></span></div>
+  </div>
+  <div class="card"><h2 style="margin-top:0">Share with the team</h2><p class="muted small">Tests and profiles live in this folder, a copy of the team repository. Get what others added, or send yours. Put your tests in a set named after you or the topic (<code>anderson_shopping</code>) so files never collide.</p>
+    <div id="share-status" class="muted small" style="margin:6px 0"></div>
+    <div class="row"><button class="btn" onclick="sharePull()">Get updates</button><input type="text" id="share-who" placeholder="your name" style="width:160px"><input type="text" id="share-msg" placeholder="what you added" style="width:260px"><button class="btn primary" onclick="sharePush()">Share my changes</button><span id="share-result" class="muted small"></span></div></div>
+  <div class="card"><h2 style="margin-top:0">Settings file</h2><div class="kv" id="set-config"></div></div>
 </section>
 </main>
+
+<div class="bar" id="bar" hidden>
+  <strong id="bar-count"></strong>
+  <div class="chips" id="bar-cols"></div>
+  <span class="muted small" id="bar-plan"></span>
+  <span style="flex:1"></span>
+  <button class="btn" onclick="selectTests(false)">Clear</button>
+  <button class="btn primary" onclick="go('run')">Continue to run →</button>
+</div>
+
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="row" style="justify-content:space-between"><strong id="d-title">Test</strong><div class="row"><button class="btn small" id="d-edit-btn" onclick="toggleEdit()">Edit</button><button class="btn small" onclick="closeDrawer()">Close</button></div></div>
+  <div id="d-view" style="margin-top:12px"></div>
+  <div id="d-edit" hidden style="margin-top:12px">
+    <div class="grid2">
+      <div><label>category (set file)</label><input type="text" id="f-set"><label>id (category/number_name)</label><input type="text" id="f-id">
+        <label>first message — sent to the assistant exactly as written</label><textarea id="f-opening"></textarea>
+        <label>what is going on (the simulated user reads this, the assistant never does)</label><textarea id="f-situation"></textarea>
+        <label>what they want</label><textarea id="f-goal"></textarea>
+        <label>done when — the judge's hard requirement; make it checkable</label><textarea id="f-done_when"></textarea></div>
+      <div><label>details they give only when asked — one per line (answers to every question the assistant will ask)</label><textarea id="f-hidden" style="min-height:100px"></textarea>
+        <label>steps, in order (optional, one per line)</label><textarea id="f-beats"></textarea>
+        <label>max user turns</label><input type="number" id="f-max_turns" min="1" max="30">
+        <label>tags (comma separated; use open or preset)</label><input type="text" id="f-tags">
+        <label>what it leaves on the account (for cleanup); "nothing" if nothing</label><input type="text" id="f-leaves">
+        <label>facts that differ from my profile for this test (JSON, optional)</label><textarea id="f-user"></textarea>
+        <label>extra judge criteria (optional, one per line)</label><textarea id="f-criteria"></textarea></div>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn primary" onclick="saveTest()">Save</button><button class="btn" onclick="previewTest()">What will the simulated user be told?</button><button class="btn danger small" onclick="deleteTest()">Delete</button><span id="f-msg" class="muted small"></span></div>
+    <pre id="f-preview" hidden></pre>
+  </div>
+  <div id="d-conv" hidden style="margin-top:12px"></div>
+</div>
 
 <script>
 const $ = (id) => document.getElementById(id);
@@ -261,345 +212,309 @@ async function api(path, body) {
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
 }
-let STATE = {}, PROFILES = [], SCENARIOS = [], RUNS = [], RUN_ROWS = [], CUR = null;
-const me = () => $("who-profile").value || STATE.default_profile;
-const myProfile = () => PROFILES.find(p => p.id === me()) || {accounts: [], usable_accounts: []};
+const store = { get: (k, d) => { try { const v = JSON.parse(localStorage.getItem("bet." + k)); return v === null ? d : v; } catch (e) { return d; } }, set: (k, v) => { try { localStorage.setItem("bet." + k, JSON.stringify(v)); } catch (e) {} } };
+let STATE = {}, PROFILES = [], TESTS = [], RUNS = [], ROWS = [], CHAT = null, CUR = null, SEL = new Set(store.get("sel", [])), COLS = new Set(store.get("cols", []));
+const me = () => $("me").value || STATE.default_profile;
+const myProfile = () => PROFILES.find(p => p.id === me()) || {};
+const onChrome = () => STATE.endpoint === "chrome";
 
-document.querySelectorAll("header > button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
-function showTab(name) {
-  document.querySelectorAll("header > button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
-  document.querySelectorAll("main > section").forEach(s => s.classList.toggle("on", s.id === name));
-  if (name === "profiles") renderProfiles();
-  if (name === "run") { renderRunForm(); loadRuns(); }
-  if (name === "results") loadRuns().then(loadRun);
-  if (name === "chat") renderChatForm();
-  if (name === "share") renderShare();
-  if (name === "setup") renderSetup();
-  location.hash = name;
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => go(b.dataset.page));
+function go(page) {
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.page === page));
+  document.querySelectorAll("main > section").forEach(s => s.hidden = s.id !== "page-" + page);
+  $("bar").hidden = !(page === "tests" && SEL.size);
+  if (page === "home") renderHome();
+  if (page === "tests") renderTests();
+  if (page === "run") { renderRunForm(); loadRuns(); chatPoll(); }
+  if (page === "results") loadRuns().then(loadRun);
+  if (page === "settings") renderSettings();
+  location.hash = page;
+  window.scrollTo(0, 0);
 }
 
 async function boot() {
-  try { STATE = await api("/api/state"); } catch (e) { alert("cannot reach the server: " + e.message); return; }
+  try { STATE = await api("/api/state"); } catch (e) { document.body.innerHTML = "<p style='padding:40px'>Cannot reach the server: " + esc(e.message) + "</p>"; return; }
   await loadProfiles();
-  let saved = ""; try { saved = localStorage.getItem("bet.profile") || ""; } catch (e) {}
-  const sel = $("who-profile");
-  sel.innerHTML = PROFILES.map(p => `<option value="${esc(p.id)}">${esc(p.name)} (${esc(p.id)})</option>`).join("");
+  fillMe();
+  await loadTests();
+  if (!COLS.size) COLS.add(STATE.default_column || "default");
+  go((location.hash || "#home").slice(1));
+}
+function fillMe() {
+  const saved = store.get("profile", ""); const sel = $("me");
+  sel.innerHTML = PROFILES.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("");
   sel.value = PROFILES.some(p => p.id === saved) ? saved : STATE.default_profile;
-  await switchProfile(true);
-  showTab((location.hash || "#scenarios").slice(1));
+  noteMe();
 }
-async function switchProfile(silent) {
-  try { localStorage.setItem("bet.profile", me()); } catch (e) {}
-  const p = myProfile();
-  $("who-note").textContent = STATE.endpoint === "chrome" ? (p.email ? `${p.email}${p.chrome_profile ? " · Chrome " + p.chrome_profile : ""}` : "set your dev account in Profiles") : (p.accounts && p.accounts.length ? `${p.accounts.length} account(s)` : `no bound accounts → uses ${(p.usable_accounts || []).length} unbound`);
-  await loadScenarios();
-  if (!silent && $("run").classList.contains("on")) renderRunForm();
+function noteMe() { const p = myProfile(); $("me-note").textContent = onChrome() ? (p.email || "no dev account set") : `${(p.accounts || []).length} account(s)`; }
+async function switchProfile() { store.set("profile", me()); noteMe(); await loadTests(); go((location.hash || "#home").slice(1)); }
+
+// ── home ──────────────────────────────────────────────────────────────────
+async function renderHome() {
+  STATE = await api("/api/state");
+  const checks = STATE.checks || []; const bad = checks.filter(c => !c.ok);
+  $("home-ready").textContent = bad.length ? `${bad.length} thing(s) to fix` : "Ready";
+  $("home-ready").className = bad.length ? "warn" : "good";
+  $("home-checks").innerHTML = checks.map(c => `<div class="check"><span class="dot ${c.ok ? "ok" : "no"}"></span><span>${esc(c.what)}</span>${c.ok ? "" : `<span class="muted small">— ${esc(c.detail)}</span>`}</div>`).join("");
+  $("home-chrome-btn").hidden = !(onChrome() && !(STATE.chrome || {}).up);
+  RUNS = await api("/api/runs");
+  $("home-runs").innerHTML = RUNS.slice(0, 5).map(r => `<div class="row" style="justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line)"><span>${esc(r.name)} ${r.status === "running" ? '<span class="pill running">running</span>' : ""}</span><span class="muted small">${r.conversations} conversations · ${Object.entries(r.verdicts).map(([k, v]) => k + " " + v).join(", ") || "—"} · ${r.annotated} reviewed</span>${r.conversations ? `<button class="btn small" onclick="openResults('${esc(r.name)}')">open</button>` : ""}</div>`).join("") || "no runs yet";
 }
 
-// ── profiles ──────────────────────────────────────────────────────────────
-async function loadProfiles() { PROFILES = await api("/api/profiles"); }
-async function renderProfiles() {
-  await loadProfiles();
-  $("pf-count").textContent = `${PROFILES.length} profile(s)`;
-  $("pf-table").querySelector("tbody").innerHTML = PROFILES.map(p => `<tr class="row" onclick="editProfile('${esc(p.id)}')"><td><code>${esc(p.id)}</code></td><td>${esc(p.name)}</td>
-    <td>${esc(p.facts.home || "")}</td><td>${STATE.endpoint === "chrome" ? `${esc(p.email || "")} <span class="help">${esc(p.chrome_profile ? "Chrome " + p.chrome_profile : "no Chrome profile set")}</span>` : (p.accounts.length ? p.accounts.map(a => `<span class="pill">${esc(a.split("@")[0])}</span>`).join("") : `<span class="help">none bound (${p.usable_accounts.length} unbound available)</span>`)}</td>
-    <td>${p.problems.length ? `<span class="warn" title="${esc(p.problems.join("\n"))}">${p.problems.length} note(s)</span>` : '<span class="good">ok</span>'}</td></tr>`).join("");
+// ── tests ─────────────────────────────────────────────────────────────────
+async function loadTests() { TESTS = await api("/api/scenarios?profile=" + encodeURIComponent(me())); }
+function kind(t) { return (t.tags || []).includes("preset") ? "preset" : (t.tags || []).includes("open") ? "open" : ""; }
+function renderTests() {
+  const q = $("tests-search").value.toLowerCase();
+  const sets = [...new Set(TESTS.map(t => t.set))].filter(s => s !== "maint");
+  const problems = TESTS.filter(t => t.problems.length).length;
+  $("tests-lint").textContent = problems ? `${problems} test(s) need attention (greyed out)` : "";
+  $("tests-list").innerHTML = sets.map(set => {
+    const items = TESTS.filter(t => t.set === set && (!q || JSON.stringify(t).toLowerCase().includes(q)));
+    if (!items.length) return "";
+    return `<div class="cat"><h2>${esc(set)}</h2><a href="#" onclick="selectSet('${esc(set)}');return false">select all in ${esc(set)}</a></div><div class="tests">` +
+      items.map(t => `<div class="test ${SEL.has(t.id) ? "sel" : ""}" onclick="openTest('${esc(t.id)}')"><input type="checkbox" ${SEL.has(t.id) ? "checked" : ""} ${t.problems.length ? "disabled" : ""} onclick="event.stopPropagation(); toggleSel('${esc(t.id)}', this.checked)">
+        <div class="t"><div class="o">${esc(t.opening)}</div><div class="meta">${kind(t) ? `<span class="pill ${kind(t)}">${kind(t)}</span>` : ""}<span>${t.max_turns || STATE.config.max_turns} turns</span>${(t.beats || []).length ? `<span>${t.beats.length} steps</span>` : ""}${t.problems.length ? `<span class="bad">${esc(t.problems[0])}</span>` : ""}</div></div></div>`).join("") + "</div>";
+  }).join("");
+  renderBar();
 }
-function factsForm(facts) {
-  const keys = [...STATE.suggested_facts];
-  $("p-facts").innerHTML = keys.map(k => `<label>${esc(k)}${k === "name" || k === "home" ? " *" : ""}</label>${k === "calendar" || k === "household" ? `<textarea data-fact="${k}">${esc(facts[k] || "")}</textarea>` : `<input type="text" data-fact="${k}" value="${esc(facts[k] || "")}">`}`).join("");
-  const extra = Object.fromEntries(Object.entries(facts).filter(([k]) => !keys.includes(k)));
-  $("p-extra").value = Object.keys(extra).length ? JSON.stringify(extra) : "";
+function toggleSel(id, on) { if (on) SEL.add(id); else SEL.delete(id); store.set("sel", [...SEL]); renderTests(); }
+function selectTests(on) { SEL = on ? new Set(TESTS.filter(t => !t.problems.length && t.set !== "maint").map(t => t.id)) : new Set(); store.set("sel", [...SEL]); renderTests(); }
+function selectSet(set) { TESTS.filter(t => t.set === set && !t.problems.length).forEach(t => SEL.add(t.id)); store.set("sel", [...SEL]); renderTests(); }
+function colChips(el) {
+  el.innerHTML = (STATE.columns || []).map(c => `<span class="chip ${COLS.has(c.id) ? "on" : ""}" title="${esc(c.label || "")}" onclick="toggleCol('${esc(c.id)}')">${esc(c.id)}</span>`).join("");
 }
-function newProfile() {
-  $("pf-title").textContent = "New profile"; $("p-id").value = ""; factsForm({}); $("p-style").value = ""; $("p-limits").value = (PROFILES.find(p => p.id === "default") || {limits: []}).limits.join("\n");
-  $("p-profile").value = ""; renderAccountPicker([], ""); $("p-email").value = ""; $("p-chrome").value = ""; $("pf-msg").textContent = ""; $("pf-editor").style.display = ""; $("pf-editor").scrollIntoView({behavior: "smooth"});
+function toggleCol(id) { if (COLS.has(id)) COLS.delete(id); else COLS.add(id); store.set("cols", [...COLS]); renderBar(); if (!$("page-run").hidden) renderRunForm(); }
+function renderBar() {
+  $("bar").hidden = !($("page-tests").hidden === false && SEL.size);
+  $("bar-count").textContent = `${SEL.size} test(s) selected`;
+  colChips($("bar-cols"));
+  $("bar-plan").textContent = `× ${COLS.size} model(s) = ${SEL.size * COLS.size} conversation(s)`;
 }
-function editProfile(id) {
-  const p = PROFILES.find(x => x.id === id);
-  $("pf-title").textContent = id; $("p-id").value = p.id; factsForm(p.facts); $("p-style").value = p.style; $("p-limits").value = p.limits.join("\n");
-  $("p-profile").value = JSON.stringify(p.profile); renderAccountPicker(p.accounts, p.id); $("p-email").value = p.email || ""; $("p-chrome").value = p.chrome_profile || ""; $("pf-msg").textContent = p.problems.join("; ");
-  $("pf-editor").style.display = ""; $("pf-editor").scrollIntoView({behavior: "smooth"});
+function openTest(id) {
+  const t = TESTS.find(x => x.id === id); CUR = {test: t};
+  $("d-title").textContent = t.id; $("d-conv").hidden = true; $("d-view").hidden = false; $("d-edit").hidden = true; $("d-edit-btn").hidden = false; $("d-edit-btn").textContent = "Edit";
+  $("d-view").innerHTML = `<div class="turn user"><div class="who">first message, sent as written</div>${esc(t.opening)}</div>
+    <div class="kv"><div>kind</div><div>${kind(t) ? `<span class="pill ${kind(t)}">${kind(t)}</span>` : "—"} · ${t.max_turns || STATE.config.max_turns} user turns</div>
+    <div>what is going on</div><div>${esc(t.situation || "—")}</div><div>what they want</div><div>${esc(t.goal || "—")}</div>
+    <div>details given only when asked</div><div>${(t.hidden || []).map(h => "• " + esc(h)).join("<br>") || "—"}</div>
+    ${(t.beats || []).length ? `<div>steps</div><div>${t.beats.map((b, i) => (i + 1) + ". " + esc(b)).join("<br>")}</div>` : ""}
+    <div>done when</div><div>${esc(t.done_when || "—")}</div><div>leaves on the account</div><div>${esc(t.leaves || "—")}</div>
+    ${t.problems.length ? `<div class="bad">needs attention</div><div class="bad">${esc(t.problems.join("; "))}</div>` : ""}</div>
+    <div class="row" style="margin-top:14px"><button class="btn primary" onclick="toggleSel('${esc(t.id)}', true); closeDrawer()">Select for the batch</button><button class="btn" onclick="closeDrawer(); go('run'); $('chat-scenario').value='${esc(t.id)}'">Watch it live</button></div>`;
+  fillForm(t); openDrawer();
 }
-function renderAccountPicker(mine, pid) {
-  $("p-fields-help").textContent = STATE.profile_fields.join(", ");
-  $("p-accounts-wrap").style.display = STATE.endpoint === "chrome" ? "none" : "";
-  const found = ((STATE.chrome || {}).profiles || []);
-  $("p-chrome").innerHTML = '<option value="">(pick the Chrome profile signed in to dev)</option>' + found.map(c => `<option value="${esc(c.dir)}">${esc(c.dir)} — ${esc(c.email || c.name)}</option>`).join("");
-  $("p-accounts").innerHTML = (STATE.accounts || []).map(a => { const other = a.profile && a.profile !== pid;
-    return `<label class="chk"><input type="checkbox" class="p-acct" value="${esc(a.email)}" ${mine.includes(a.email) ? "checked" : ""} ${other ? "disabled" : ""}> ${esc(a.email)} ${other ? `<span class="help">(${esc(a.profile)})</span>` : ""}</label>`; }).join("") || '<span class="bad">no accounts in accounts.tsv</span>';
-}
-async function saveProfile() {
-  try {
-    const facts = {}; document.querySelectorAll("#p-facts [data-fact]").forEach(el => { if (el.value.trim()) facts[el.dataset.fact] = el.value.trim(); });
-    if ($("p-extra").value.trim()) Object.assign(facts, JSON.parse($("p-extra").value));
-    const body = {id: $("p-id").value.trim(), facts, style: $("p-style").value.trim(), limits: $("p-limits").value.split("\n").map(x => x.trim()).filter(Boolean),
-                  profile: $("p-profile").value.trim() ? JSON.parse($("p-profile").value) : {}, accounts: [...document.querySelectorAll(".p-acct:checked")].map(c => c.value),
-                  email: $("p-email").value.trim(), chrome_profile: $("p-chrome").value};
-    const r = await api("/api/profiles", body);
-    $("pf-msg").textContent = r.problems.length ? "saved; notes: " + r.problems.join("; ") : "saved ✓";
-    STATE = await api("/api/state"); await renderProfiles();
-    const sel = $("who-profile"); const cur = me(); sel.innerHTML = PROFILES.map(p => `<option value="${esc(p.id)}">${esc(p.name)} (${esc(p.id)})</option>`).join(""); sel.value = PROFILES.some(p => p.id === cur) ? cur : r.id;
-    await switchProfile(true);
-  } catch (e) { $("pf-msg").textContent = "not saved: " + e.message; }
-}
-async function deleteProfile() {
-  const id = $("p-id").value.trim(); if (!id || !confirm(`Delete profile ${id}?`)) return;
-  try { const r = await api("/api/profiles/delete", {id}); if (!r.deleted) throw new Error("the default profile cannot be deleted"); $("pf-editor").style.display = "none"; STATE = await api("/api/state"); await renderProfiles(); }
-  catch (e) { $("pf-msg").textContent = e.message; }
-}
-
-// ── scenarios ────────────────────────────────────────────────────────────
-async function loadScenarios() {
-  SCENARIOS = await api("/api/scenarios?profile=" + encodeURIComponent(me()));
-  const sel = $("sc-set-filter"); const cur = sel.value;
-  sel.innerHTML = '<option value="">all sets</option>' + [...new Set(SCENARIOS.map(s => s.set))].map(s => `<option ${s === cur ? "selected" : ""}>${esc(s)}</option>`).join("");
-  renderScenarios();
-}
-function renderScenarios() {
-  const set = $("sc-set-filter").value, q = $("sc-search").value.toLowerCase();
-  const rows = SCENARIOS.filter(s => (!set || s.set === set) && (!q || JSON.stringify(s).toLowerCase().includes(q)));
-  $("sc-count").textContent = `${rows.length} of ${SCENARIOS.length} · lint as ${me()}`;
-  $("sc-table").querySelector("tbody").innerHTML = rows.map(s => `<tr class="row" onclick="editScenario('${esc(s.id)}')">
-    <td><code>${esc(s.id)}</code></td><td>${esc((s.opening || "").slice(0, 110))}</td><td>${s.max_turns || ""}</td><td>${(s.beats || []).length || ""}</td>
-    <td>${(s.tags || []).map(t => `<span class="pill">${esc(t)}</span>`).join("")}</td>
-    <td>${s.problems && s.problems.length ? `<span class="bad" title="${esc(s.problems.join("\n"))}">${s.problems.length} problem(s)</span>` : '<span class="good">ok</span>'}</td></tr>`).join("");
-}
+function openDrawer() { $("drawer").classList.add("on"); $("scrim").classList.add("on"); }
+function closeDrawer() { $("drawer").classList.remove("on"); $("scrim").classList.remove("on"); }
+function toggleEdit() { const e = $("d-edit").hidden; $("d-edit").hidden = !e; $("d-view").hidden = e; $("d-edit-btn").textContent = e ? "View" : "Edit"; }
 function fillForm(s) {
-  $("f-set").value = s.set || ""; $("f-id").value = s.id || ""; $("f-opening").value = s.opening || ""; $("f-situation").value = s.situation || "";
-  $("f-goal").value = s.goal || ""; $("f-done_when").value = s.done_when || ""; $("f-leaves").value = s.leaves || "";
-  $("f-hidden").value = (s.hidden || []).join("\n"); $("f-beats").value = (s.beats || []).join("\n"); $("f-reveal").value = s.reveal || "";
-  $("f-max_turns").value = s.max_turns || ""; $("f-tags").value = (s.tags || []).join(", ");
-  $("f-user").value = s.user && Object.keys(s.user).length ? JSON.stringify(s.user) : ""; $("f-criteria").value = ((s.scoring || {}).criteria || []).join("\n");
-  $("sc-msg").textContent = s.problems && s.problems.length ? "lint: " + s.problems.join("; ") : "";
-  $("sc-editor").style.display = ""; $("sc-preview").style.display = "none";
-  $("sc-editor").scrollIntoView({behavior: "smooth"});
+  $("f-set").value = s.set || ""; $("f-id").value = s.id || ""; $("f-opening").value = s.opening || ""; $("f-situation").value = s.situation || ""; $("f-goal").value = s.goal || "";
+  $("f-done_when").value = s.done_when || ""; $("f-hidden").value = (s.hidden || []).join("\n"); $("f-beats").value = (s.beats || []).join("\n"); $("f-max_turns").value = s.max_turns || "";
+  $("f-tags").value = (s.tags || []).join(", "); $("f-leaves").value = s.leaves || ""; $("f-user").value = s.user && Object.keys(s.user).length ? JSON.stringify(s.user) : ""; $("f-criteria").value = ((s.scoring || {}).criteria || []).join("\n");
+  $("f-msg").textContent = ""; $("f-preview").hidden = true;
 }
 function readForm() {
   const lines = (id) => $(id).value.split("\n").map(x => x.trim()).filter(Boolean);
-  const s = {id: $("f-id").value.trim(), opening: $("f-opening").value.trim(), situation: $("f-situation").value.trim(), goal: $("f-goal").value.trim(),
-             done_when: $("f-done_when").value.trim(), leaves: $("f-leaves").value.trim(), hidden: lines("f-hidden"), beats: lines("f-beats"),
-             tags: $("f-tags").value.split(",").map(x => x.trim()).filter(Boolean)};
-  if ($("f-reveal").value.trim()) s.reveal = $("f-reveal").value.trim();
+  const s = {id: $("f-id").value.trim(), opening: $("f-opening").value.trim(), situation: $("f-situation").value.trim(), goal: $("f-goal").value.trim(), done_when: $("f-done_when").value.trim(),
+             hidden: lines("f-hidden"), beats: lines("f-beats"), tags: $("f-tags").value.split(",").map(x => x.trim()).filter(Boolean), leaves: $("f-leaves").value.trim()};
   if ($("f-max_turns").value) s.max_turns = parseInt($("f-max_turns").value, 10);
   if ($("f-user").value.trim()) s.user = JSON.parse($("f-user").value);
   const crit = lines("f-criteria"); if (crit.length) s.scoring = {criteria: crit};
   return s;
 }
-function newScenario() { const set = $("sc-set-filter").value || "daily"; fillForm({set, id: set + "/", problems: []}); $("sc-editor-title").textContent = "New scenario"; }
-function editScenario(id) { const s = SCENARIOS.find(x => x.id === id); $("sc-editor-title").textContent = id; fillForm(s); }
-async function saveScenario() {
-  try {
-    const r = await api("/api/scenarios", {set: $("f-set").value.trim(), scenario: readForm(), profile: me()});
-    $("sc-msg").textContent = r.problems.length ? "saved, but lint says: " + r.problems.join("; ") : "saved ✓";
-    await loadScenarios();
-  } catch (e) { $("sc-msg").textContent = "not saved: " + e.message; }
+function newTest() {
+  const mine = (me() || "my").replace(/[^a-z0-9_-]/g, "");
+  CUR = {test: null}; $("d-title").textContent = "New test"; $("d-conv").hidden = true; $("d-view").hidden = true; $("d-edit").hidden = false; $("d-edit-btn").hidden = true;
+  fillForm({set: mine + "_tests", id: mine + "_tests/01_", tags: ["open"], max_turns: 4, leaves: "nothing"}); openDrawer();
 }
-async function deleteScenario() {
-  const id = $("f-id").value.trim(); if (!id || !confirm(`Delete ${id}?`)) return;
-  try { await api("/api/scenarios/delete", {set: $("f-set").value.trim(), id}); $("sc-editor").style.display = "none"; await loadScenarios(); }
-  catch (e) { $("sc-msg").textContent = e.message; }
+async function saveTest() {
+  try { const r = await api("/api/scenarios", {set: $("f-set").value.trim(), scenario: readForm(), profile: me()}); $("f-msg").textContent = r.problems.length ? "saved, but: " + r.problems.join("; ") : "saved ✓"; await loadTests(); renderTests(); }
+  catch (e) { $("f-msg").textContent = "not saved: " + e.message; }
 }
-async function previewScenario(callModel) {
-  $("sc-preview").style.display = "";
-  try {
-    const r = await api("/api/preview", {scenario: readForm(), assistant: $("f-assistant").value.split("\n"), call_model: !!callModel, profile: me()});
-    $("sc-prompt").textContent = (r.problems.length ? "LINT: " + r.problems.join("; ") + "\n\n" : "") + "OPENING (sent as is): " + r.opening + "\n\n--- the user model's briefing ---\n" + r.system_prompt;
-    $("sc-next").textContent = r.next ? `next user message: "${r.next.say}"  done=${r.next.done}  (${r.next.why})` : (r.error || "");
-  } catch (e) { $("sc-prompt").textContent = e.message; }
-}
+async function deleteTest() { const id = $("f-id").value.trim(); if (!id) return; $("f-msg").textContent = "deleting…"; try { await api("/api/scenarios/delete", {set: $("f-set").value.trim(), id}); SEL.delete(id); closeDrawer(); await loadTests(); renderTests(); } catch (e) { $("f-msg").textContent = e.message; } }
+async function previewTest() { try { const r = await api("/api/preview", {scenario: readForm(), assistant: [], call_model: false, profile: me()}); $("f-preview").hidden = false; $("f-preview").textContent = r.system_prompt; } catch (e) { $("f-msg").textContent = e.message; } }
 
 // ── run ───────────────────────────────────────────────────────────────────
 function renderRunForm() {
   const p = myProfile();
-  $("run-as").textContent = `— as ${p.name || me()} (${me()})`;
-  $("run-columns").innerHTML = (STATE.columns || []).map((c, i) => `<label class="chk" style="display:flex"><input type="checkbox" class="run-col" value="${esc(c.id)}" ${c.id === STATE.default_column ? "checked" : ""}> <code>${esc(c.id)}</code> <span class="help">${esc(c.label || "")}</span></label>`).join("");
-  const sets = [...new Set(SCENARIOS.map(s => s.set))].filter(s => s !== "maint");
-  $("run-scenarios").innerHTML = sets.map(set => `<div><strong>${esc(set)}</strong> <a href="#" onclick="selectSet('${esc(set)}');return false" class="help">select set</a></div>` +
-    SCENARIOS.filter(s => s.set === set).map(s => `<label class="chk" style="display:flex"><input type="checkbox" class="run-sc" value="${esc(s.id)}" ${s.problems.length ? "disabled" : ""} onchange="planText()"> <code>${esc(s.id)}</code> <span class="help">${esc((s.opening || "").slice(0, 70))}</span></label>`).join("")).join("");
-  const usable = p.usable_accounts || [];
-  $("run-accounts").innerHTML = usable.map(a => `<label class="chk"><input type="checkbox" class="run-acct" value="${esc(a)}"> ${esc(a)}</label>`).join("") || '<span class="bad">this profile has no usable accounts — bind some in Profiles, or add unbound ones to accounts.tsv</span>';
-  const onChrome = STATE.endpoint === "chrome";
-  $("run-accounts-wrap").style.display = onChrome ? "none" : "";
-  $("run-parallel").disabled = onChrome; if (onChrome) $("run-parallel").value = 1;
-  $("run-chrome-note").innerHTML = onChrome ? ((STATE.chrome || {}).up ? `Runs in the tool's Chrome as <b>${esc(p.email || "your account")}</b>, one conversation at a time (you can watch the window).` : `<span class="bad">The tool's Chrome is not running — start it in the Setup tab first.</span>`) : "";
+  $("run-as").textContent = onChrome() ? ((STATE.chrome || {}).up ? `Runs in your Chrome as ${p.email || "your account"}, one conversation at a time. You can watch the window.` : "Your Chrome is not running yet — start it in Settings (or on Home).") : `Runs on this profile's test accounts.`;
+  const sel = [...SEL].filter(id => TESTS.some(t => t.id === id));
+  $("run-summary").innerHTML = sel.length ? `<b>${sel.length} test(s)</b>: ${sel.map(id => `<code>${esc(id)}</code>`).join(", ")} <a href="#" onclick="go('tests');return false">change</a>` : 'No tests selected yet. <a href="#" onclick="go(\'tests\');return false">Pick some</a>.';
+  colChips($("run-cols"));
   if (!$("run-tag").value) $("run-tag").value = me();
-  document.querySelectorAll(".run-col, #run-runs, #run-columns-extra").forEach(el => el.addEventListener("change", planText));
-  planText();
+  $("run-start").disabled = !sel.length;
+  const chat = $("chat-scenario"); const cur = chat.value;
+  chat.innerHTML = TESTS.filter(t => !t.problems.length && t.set !== "maint").map(t => `<option value="${esc(t.id)}" ${t.id === cur ? "selected" : ""}>${esc(t.id)} — ${esc(t.opening.slice(0, 60))}</option>`).join("");
+  $("chat-column").innerHTML = (STATE.columns || []).map(c => `<option value="${esc(c.id)}">${esc(c.id)} — ${esc(c.label || "")}</option>`).join("");
 }
-function chosenColumns() { return [...document.querySelectorAll(".run-col:checked")].map(c => c.value).concat($("run-columns-extra").value.split(",").map(x => x.trim()).filter(Boolean)); }
-function planText() {
-  const n = document.querySelectorAll(".run-sc:checked").length, c = chosenColumns().length, r = +$("run-runs").value || 1;
-  $("run-plan").textContent = n && c ? `→ ${n} scenario(s) × ${c} model(s) × ${r} = ${n * c * r} conversation(s)` : "";
-}
-function selectAll(on) { document.querySelectorAll(".run-sc:not(:disabled)").forEach(c => c.checked = on); planText(); }
-function selectSet(set) { document.querySelectorAll(".run-sc:not(:disabled)").forEach(c => { if (c.value.startsWith(set + "/")) c.checked = true; }); planText(); }
+function chosenColumns() { return [...COLS].concat($("run-cols-extra").value.split(",").map(x => x.trim()).filter(Boolean)); }
 async function startRun() {
-  const req = {profile: me(), scenarios: [...document.querySelectorAll(".run-sc:checked")].map(c => c.value), columns: chosenColumns(),
-               runs: +$("run-runs").value || 1, parallel: +$("run-parallel").value || 4, max_turns: +$("run-turns").value || null, tag: $("run-tag").value,
-               score: $("run-judge").checked ? "judge" : "none", calibrate_first: $("run-calibrate").checked, cleanup: $("run-cleanup").checked,
-               accounts: [...document.querySelectorAll(".run-acct:checked")].map(c => c.value)};
-  if (!req.scenarios.length) { $("run-msg").textContent = "pick at least one scenario"; return; }
+  const req = {profile: me(), scenarios: [...SEL], columns: chosenColumns(), runs: +$("run-runs").value || 1, parallel: 1, max_turns: +$("run-turns").value || null, tag: $("run-tag").value,
+               score: $("run-judge").checked ? "judge" : "none", calibrate_first: $("run-calibrate").checked, cleanup: $("run-cleanup").checked};
   if (!req.columns.length) { $("run-msg").textContent = "pick at least one model"; return; }
-  if (!confirm(`Start ${req.scenarios.length} scenario(s) × ${req.columns.length} model(s) × ${req.runs} on dev as ${me()}?`)) return;
-  try { const r = await api("/api/runs/start", req); $("run-msg").textContent = "started " + r.tag; setTimeout(loadRuns, 1500); }
+  $("run-msg").textContent = "starting…";
+  try { const r = await api("/api/runs/start", req); $("run-msg").textContent = "started: " + r.tag; setTimeout(loadRuns, 1500); }
   catch (e) { $("run-msg").textContent = e.message; }
 }
 async function loadRuns() {
   RUNS = await api("/api/runs");
-  $("runs-table").querySelector("tbody").innerHTML = RUNS.map(r => `<tr class="row" onclick="showLog('${esc(r.tag)}')"><td>${esc(r.name)}<div class="help">${esc(r.modified)}</div></td>
-    <td class="help">${esc((r.profiles || []).slice(0, 3).join(", "))}${(r.profiles || []).length > 3 ? ` +${r.profiles.length - 3}` : ""}</td><td class="${r.status === "running" ? "warn" : ""}">${esc(r.status)}</td><td>${r.conversations}</td>
-    <td>${Object.entries(r.verdicts).map(([k, v]) => `<span class="pill ${esc(k)}">${esc(k)} ${v}</span>`).join("")}</td><td>${r.annotated}</td>
-    <td>${r.status === "running" ? `<button class="btn danger" onclick="event.stopPropagation();stopRun('${esc(r.tag)}')">stop</button>` : ""}
-        ${r.conversations ? `<button class="btn" onclick="event.stopPropagation();openResults('${esc(r.name)}')">results</button>` : ""}</td></tr>`).join("") || '<tr><td colspan="7" class="help">no runs yet</td></tr>';
+  $("runs-table").querySelector("tbody").innerHTML = RUNS.map(r => `<tr class="r" onclick="showLog('${esc(r.tag)}')"><td>${esc(r.name)}<div class="muted small">${esc(r.modified)} · ${esc((r.profiles || []).slice(0, 2).join(", "))}</div></td>
+    <td>${r.status === "running" ? '<span class="pill running">running</span>' : esc(r.status)}</td><td>${r.conversations}</td>
+    <td>${Object.entries(r.verdicts).map(([k, v]) => `<span class="pill ${esc(k)}">${esc(k)} ${v}</span>`).join(" ")}</td><td>${r.annotated}</td>
+    <td>${r.status === "running" ? `<button class="btn small danger" onclick="event.stopPropagation();stopRun('${esc(r.tag)}')">stop</button>` : ""} ${r.conversations ? `<button class="btn small" onclick="event.stopPropagation();openResults('${esc(r.name)}')">results</button>` : ""}</td></tr>`).join("") || '<tr><td colspan="6" class="muted">no runs yet</td></tr>';
   const sel = $("res-run"); const cur = sel.value;
   sel.innerHTML = RUNS.filter(r => r.conversations).map(r => `<option value="${esc(r.name)}" ${r.name === cur ? "selected" : ""}>${esc(r.name)} (${r.conversations})</option>`).join("");
-  if (RUNS.some(r => r.status === "running")) setTimeout(() => { if ($("run").classList.contains("on")) loadRuns(); }, 8000);
+  if (RUNS.some(r => r.status === "running") && !$("page-run").hidden) setTimeout(loadRuns, 8000);
 }
-async function showLog(tag) {
-  const r = await fetch(`/api/log?tag=${encodeURIComponent(tag)}`); $("run-log").style.display = ""; $("run-log").textContent = await r.text(); $("run-log").scrollTop = 1e9;
-}
+async function showLog(tag) { const r = await fetch(`/api/log?tag=${encodeURIComponent(tag)}`); $("run-log").hidden = false; $("run-log").textContent = await r.text(); $("run-log").scrollTop = 1e9; }
 async function stopRun(tag) { await api("/api/runs/stop", {tag}); loadRuns(); }
-function openResults(name) { showTab("results"); $("res-run").value = name; loadRun(); }
+function openResults(name) { go("results"); $("res-run").value = name; loadRun(); }
 
-// ── results ───────────────────────────────────────────────────────────────
-async function loadRun() {
-  const name = $("res-run").value; if (!name) { $("res-table").querySelector("tbody").innerHTML = ""; return; }
-  RUN_ROWS = await api(`/api/run?name=${encodeURIComponent(name)}`);
-  $("res-export").href = `/api/export?name=${encodeURIComponent(name)}`;
-  renderRun();
-}
-function renderRun() {
-  const f = $("res-filter").value;
-  const rows = RUN_ROWS.filter(r => !f || (f === "error" ? (r.stop === "assistant_error" || String(r.stop).startsWith("error")) : f === "unannotated" ? !r.annotation.verdict : r.verdict === f));
-  const byCol = {};
-  RUN_ROWS.forEach(r => { const c = byCol[r.column] = byCol[r.column] || {n: 0, pass: 0, judged: 0}; c.n++; if (r.verdict === "PASS") c.pass++; if (r.verdict === "PASS" || r.verdict === "FAIL") c.judged++; });
-  $("res-summary").textContent = Object.entries(byCol).map(([c, v]) => `${c}: ${v.pass}/${v.judged} judged PASS (${v.n} conversations)`).join(" · ");
-  $("res-table").querySelector("tbody").innerHTML = rows.map(r => `<tr class="row" onclick="openConversation('${esc(r.file)}')">
-    <td><code>${esc(r.scenario)}</code></td><td>${esc(r.column)}</td><td class="help">${esc(r.profile)}</td><td class="help">${esc((r.account || "").split("@")[0])}</td><td>${r.user_turns}</td>
-    <td class="${r.stop === "assistant_error" || String(r.stop).startsWith("error") ? "bad" : ""}">${esc(r.stop)}</td>
-    <td><span class="pill ${esc(r.verdict)}">${esc(r.verdict)}</span></td><td>${r.score ?? ""}</td>
-    <td class="help">${r.fabrication ? "fabrication " : ""}${r.violations ? "violations " : ""}${r.asked_first === false ? "did not ask first" : ""}</td>
-    <td>${r.annotation.verdict ? `<span class="pill ${esc(r.annotation.verdict)}">${esc(r.annotation.verdict)}</span>` : ""}${(r.annotation.issues || []).length ? `<span class="help">${esc(r.annotation.issues.join(", "))}</span>` : ""}</td></tr>`).join("");
-}
-async function openConversation(file) {
-  const run = $("res-run").value;
-  CUR = {run, file, data: await api(`/api/conversation?run=${encodeURIComponent(run)}&file=${encodeURIComponent(file)}`)};
-  const d = CUR.data;
-  $("conv-title").textContent = `${d.scenario} · ${d.column || "default"} · ${d.profile || d.persona || ""} · ${d.account || ""} · stop=${d.stop}`;
-  $("conv-turns").innerHTML = (d.turns || []).map(t => {
-    if (!t.user) return `<div class="turn help">user model decided to stop: ${esc((t.sim || {}).why)}</div>`;
-    const calls = (t.calls || []).map(c => `<details><summary>${esc(c.name)}${c.is_error ? ' <span class="bad">error</span>' : ""} <span class="help">${esc(JSON.stringify(c.input || {}).slice(0, 120))}</span></summary><pre>${esc(JSON.stringify(c.input || {}, null, 1))}\n→ ${esc(String(c.result || "").slice(0, 3000))}</pre></details>`).join("");
-    return `<div class="turn user"><strong>user ${t.n}</strong> ${esc(t.user)}${t.sim && t.sim.why ? `<div class="help">why: ${esc(t.sim.why)}</div>` : ""}</div>
-      <div class="turn assistant"><strong>assistant</strong> <span class="help">${esc(t.reason || "?")} · ${(t.calls || []).length} tool calls · ${Math.round(t.duration_s || 0)} s${t.error ? ` · <span class="bad">${esc(t.error)}</span>` : ""}</span>
-      <div>${esc(t.assistant || "(no reply)")}</div>${calls}</div>`;
-  }).join("");
-  const j = ((d.score || {}).judge || [])[0] || {};
-  $("conv-judge").innerHTML = `<div><span class="pill ${esc((d.score || {}).verdict || "-")}">${esc((d.score || {}).verdict || "-")}</span> score ${j.score ?? "?"} · steps ${j.steps_completed ?? "?"} · asked first: ${j.asked_before_acting ?? "?"} · unnecessary questions: ${j.unnecessary_questions ?? "?"} · fabrication: ${j.fabrication ?? "?"}</div>
-    <p>${esc(j.reasoning || (d.score || {}).lines?.join("\n") || "")}</p>
-    ${(j.violations || []).length ? `<div class="bad">violations: ${esc(j.violations.join("; "))}</div>` : ""}
-    ${(j.fabrication_examples || []).length ? `<div class="warn">fabrication: ${esc(j.fabrication_examples.join("; "))}</div>` : ""}
-    ${(j.feasibility_issues || []).length ? `<div class="help">feasibility: ${esc(j.feasibility_issues.join("; "))}</div>` : ""}`;
-  const a = d.annotation || {};
-  document.querySelectorAll('input[name="ann-v"]').forEach(r => r.checked = r.value === a.verdict);
-  $("ann-issues").innerHTML = (STATE.issues || []).map(i => `<label class="chk"><input type="checkbox" class="ann-i" value="${esc(i)}" ${(a.issues || []).includes(i) ? "checked" : ""}> ${esc(i)}</label>`).join("");
-  let by = ""; try { by = localStorage.getItem("bet.by") || ""; } catch (e) {}
-  $("ann-comment").value = a.comment || ""; $("ann-by").value = a.by || by; $("ann-msg").textContent = a.time ? `last saved ${a.time} by ${a.by || "?"}` : "";
-  const sc = SCENARIOS.find(s => s.id === d.scenario) || {};
-  $("conv-brief").textContent = `goal: ${sc.goal || ""}\nhidden:\n- ${(sc.hidden || []).join("\n- ")}\nbeats:\n- ${(sc.beats || []).join("\n- ")}\ndone_when: ${sc.done_when || ""}`;
-  $("conv").style.display = ""; $("conv").scrollIntoView({behavior: "smooth"});
-}
-async function saveAnnotation() {
-  const v = document.querySelector('input[name="ann-v"]:checked');
-  const ann = {verdict: v ? v.value : "", issues: [...document.querySelectorAll(".ann-i:checked")].map(c => c.value), comment: $("ann-comment").value, by: $("ann-by").value};
-  try { localStorage.setItem("bet.by", ann.by); } catch (e) {}
-  try { const r = await api("/api/annotate", {run: CUR.run, file: CUR.file, annotation: ann}); $("ann-msg").textContent = "saved " + r.time; CUR.data.annotation = r; await loadRun(); }
-  catch (e) { $("ann-msg").textContent = e.message; }
-}
-
-// ── chat (live) ──────────────────────────────────────────────────────────
-let CHAT_TIMER = null, CHAT = null;
-function renderChatForm() {
-  const sel = $("chat-scenario"); const cur = sel.value;
-  sel.innerHTML = SCENARIOS.filter(s => !s.problems.length && s.set !== "maint").map(s => `<option value="${esc(s.id)}" ${s.id === cur ? "selected" : ""}>${esc(s.id)} — ${esc((s.opening || "").slice(0, 60))}</option>`).join("");
-  $("chat-column").innerHTML = (STATE.columns || []).map(c => `<option value="${esc(c.id)}">${esc(c.id)} — ${esc(c.label || "")}</option>`).join("");
-  chatPoll();
-}
+// ── live chat ─────────────────────────────────────────────────────────────
+let CHAT_TIMER = null;
 async function chatStart() {
-  const req = {profile: me(), scenario: $("chat-scenario").value, column: $("chat-column").value, max_turns: +$("chat-turns").value || null, auto: $("chat-auto").checked};
+  const req = {profile: me(), scenario: $("chat-scenario").value, column: $("chat-column").value, auto: $("chat-auto").checked};
   $("chat-msg").textContent = "starting…";
-  try { CHAT = await api("/api/live/start", req); $("chat-msg").textContent = ""; renderChat(); chatPoll(); }
-  catch (e) { $("chat-msg").textContent = e.message; }
+  try { CHAT = await api("/api/live/start", req); $("chat-msg").textContent = ""; renderChat(); chatPoll(); } catch (e) { $("chat-msg").textContent = e.message; }
 }
 async function chatPoll() {
   clearTimeout(CHAT_TIMER);
   try { CHAT = await api("/api/live"); } catch (e) { return; }
   renderChat();
-  if (CHAT.state && !["idle", "finished", "error"].includes(CHAT.state) && $("chat").classList.contains("on")) CHAT_TIMER = setTimeout(chatPoll, 3000);
+  if (CHAT.state && !["idle", "finished", "error"].includes(CHAT.state) && !$("page-run").hidden) CHAT_TIMER = setTimeout(chatPoll, 3000);
 }
 async function chatSend(end) { await chatAct("send", {text: $("chat-text").value, end: !!end}); }
-async function chatAct(action, extra) {
-  try { CHAT = await api("/api/live/act", {action, ...(extra || {})}); renderChat(); chatPoll(); } catch (e) { $("chat-msg").textContent = e.message; }
-}
+async function chatAct(action, extra) { try { CHAT = await api("/api/live/act", {action, ...(extra || {})}); renderChat(); chatPoll(); } catch (e) { $("chat-msg").textContent = e.message; } }
 function renderChat() {
   const c = CHAT || {state: "idle"};
-  $("chat-state").textContent = c.state + (c.auto ? " · auto" : "");
-  $("chat-meta").textContent = c.scenario ? `${c.scenario} · ${c.column} · ${c.profile} · ${(c.turns || []).filter(t => t.user).length}/${c.max_turns} turns` : "";
-  $("chat-start").disabled = !["idle", "finished", "error"].includes(c.state);
-  const sc = SCENARIOS.find(s => s.id === c.scenario);
-  $("chat-brief").textContent = sc ? `goal: ${sc.goal || ""}\nhidden: ${(sc.hidden || []).join(" | ")}\ndone_when: ${sc.done_when || ""}` : "";
+  $("chat-box").hidden = c.state === "idle" || !c.state;
+  $("chat-state").textContent = c.state + (c.auto ? " · hands-off" : ""); $("chat-state").className = "pill " + (c.state === "finished" ? "PASS" : c.state === "error" ? "FAIL" : "running");
+  $("chat-meta").textContent = c.scenario ? `${c.scenario} · ${c.column} · ${(c.turns || []).filter(t => t.user).length}/${c.max_turns} turns` : "";
+  $("chat-start").disabled = !["idle", "finished", "error", undefined].includes(c.state);
   $("chat-turns").innerHTML = (c.turns || []).map(t => {
-    if (!t.user) return `<div class="turn help">the user model decided to stop: ${esc((t.sim || {}).why)}</div>`;
+    if (!t.user) return `<div class="muted small">the simulated user decided to stop: ${esc((t.sim || {}).why)}</div>`;
     const calls = (t.calls || []).map(x => `<details><summary>${esc(x.name)}</summary><pre>${esc(JSON.stringify(x.input || {}, null, 1))}</pre></details>`).join("");
-    const edited = t.sim && t.sim.edited ? ` <span class="warn">(edited by you; proposed: ${esc(t.sim.proposed)})</span>` : "";
-    return `<div class="turn user"><strong>user ${t.n}</strong> ${esc(t.user)}${edited}${t.sim && t.sim.why ? `<div class="help">why: ${esc(t.sim.why)}</div>` : ""}</div>
-      <div class="turn assistant"><strong>assistant</strong> <span class="help">${t.assistant || t.reason ? `${esc(t.reason || "?")} · ${(t.calls || []).length} tool calls · ${Math.round(t.duration_s || 0)} s` : "working…"}${t.error ? ` · <span class="bad">${esc(t.error)}</span>` : ""}</span><div>${esc(t.assistant || "")}</div>${calls}</div>`;
+    const edited = t.sim && t.sim.edited ? ` <span class="warn small">(you changed it; proposed: ${esc(t.sim.proposed)})</span>` : "";
+    return `<div class="turn user"><div class="who">user ${t.n}${t.sim && t.sim.why ? ` · ${esc(t.sim.why)}` : ""}</div>${esc(t.user)}${edited}</div>
+      <div class="turn assistant"><div class="who">assistant · ${t.assistant || t.reason ? `${esc(t.reason || "?")} · ${(t.calls || []).length} tool calls · ${Math.round(t.duration_s || 0)} s` : "working…"}${t.error ? ` · <span class="bad">${esc(t.error)}</span>` : ""}</div>${esc(t.assistant || "")}${calls}</div>`;
   }).join("");
   const yours = c.state === "your_turn" && c.proposal;
-  $("chat-your-turn").style.display = yours ? "" : "none";
+  $("chat-your-turn").hidden = !yours;
   if (yours && document.activeElement !== $("chat-text")) { $("chat-text").value = c.proposal.say; $("chat-why").textContent = c.proposal.why + (c.proposal.done ? " · it would end here" : ""); }
-  $("chat-done").style.display = c.state === "finished" ? "" : "none";
+  $("chat-done").hidden = c.state !== "finished";
   if (c.state === "finished") { const j = ((c.score || {}).judge || [])[0] || {}; $("chat-judge").innerHTML = `<span class="pill ${esc((c.score || {}).verdict || "-")}">${esc((c.score || {}).verdict || "-")}</span> score ${j.score ?? "?"} · ${esc(j.reasoning || ((c.score || {}).lines || []).join(" "))}`; }
   if (c.state === "error") $("chat-msg").textContent = c.error;
   $("chat-log").textContent = (c.log || []).join("\n");
 }
 function chatOpenResult() { if (!CHAT || !CHAT.path) return; const parts = CHAT.path.split("/"); openResults(parts[parts.length - 2]); }
 
-// ── share ─────────────────────────────────────────────────────────────────
-async function renderShare() {
-  $("share-status").textContent = "checking…";
-  try { let by = ""; try { by = localStorage.getItem("bet.by") || ""; } catch (e) {} if (!$("share-who").value) $("share-who").value = by;
-    const st = await api("/api/sync");
-    $("share-status").innerHTML = st.error ? `<span class="bad">${esc(st.error)}</span>` : `branch <code>${esc(st.branch)}</code> · changed here: ${st.changed.length ? st.changed.map(f => `<code>${esc(f)}</code>`).join(", ") : "nothing"} · ${st.behind ? `<span class="warn">${st.behind} update(s) from others waiting</span>` : "up to date with the team"}${st.ahead ? ` · ${st.ahead} of yours not yet shared` : ""}`;
-  } catch (e) { $("share-status").textContent = e.message; }
+// ── results ───────────────────────────────────────────────────────────────
+async function loadRun() {
+  const name = $("res-run").value; if (!name) { $("res-table").querySelector("tbody").innerHTML = ""; $("res-summary").textContent = "no runs yet"; return; }
+  ROWS = await api(`/api/run?name=${encodeURIComponent(name)}`); $("res-export").href = `/api/export?name=${encodeURIComponent(name)}`; renderRun();
 }
-async function sharePull() { $("share-result").textContent = "getting updates…"; try { const r = await api("/api/sync/pull", {}); $("share-result").textContent = r.result; await loadScenarios(); await loadProfiles(); renderShare(); } catch (e) { $("share-result").textContent = e.message; } }
-async function sharePush() {
-  const who = $("share-who").value.trim(); if (!who) { $("share-result").textContent = "put your name in"; return; }
-  try { localStorage.setItem("bet.by", who); } catch (e) {}
-  $("share-result").textContent = "sharing…";
-  try { const r = await api("/api/sync/push", {who, message: $("share-msg").value}); $("share-result").textContent = r.result; renderShare(); } catch (e) { $("share-result").textContent = e.message; }
+function renderRun() {
+  const f = $("res-filter").value;
+  const rows = ROWS.filter(r => !f || (f === "error" ? (r.stop === "assistant_error" || String(r.stop).startsWith("error")) : f === "unreviewed" ? !r.annotation.verdict : r.verdict === f));
+  const byCol = {}; ROWS.forEach(r => { const c = byCol[r.column] = byCol[r.column] || {n: 0, pass: 0, judged: 0}; c.n++; if (r.verdict === "PASS") c.pass++; if (["PASS", "FAIL"].includes(r.verdict)) c.judged++; });
+  $("res-summary").textContent = Object.entries(byCol).map(([c, v]) => `${c}: ${v.pass} of ${v.judged} judged PASS`).join(" · ");
+  const reviewed = ROWS.filter(r => r.annotation.verdict).length;
+  $("res-progress-text").textContent = `${reviewed} of ${ROWS.length} reviewed by a person`; $("res-progress").style.width = ROWS.length ? (100 * reviewed / ROWS.length) + "%" : "0";
+  $("res-table").querySelector("tbody").innerHTML = rows.map(r => `<tr class="r" onclick="openConversation('${esc(r.file)}')"><td>${esc(r.scenario)}</td><td>${esc(r.column)}</td><td>${r.user_turns}</td>
+    <td class="${r.stop === "assistant_error" || String(r.stop).startsWith("error") ? "bad" : ""}">${esc(r.stop)}</td><td><span class="pill ${esc(r.verdict)}">${esc(r.verdict)}</span></td><td>${r.score ?? ""}</td>
+    <td class="muted small">${r.fabrication ? "fabrication " : ""}${r.violations ? "acted without asking " : ""}</td><td>${r.annotation.verdict ? `<span class="pill ${esc(r.annotation.verdict)}">${esc(r.annotation.verdict)}</span>` : '<span class="muted small">—</span>'}</td></tr>`).join("") || '<tr><td colspan="8" class="muted">nothing here</td></tr>';
+}
+function nextUnreviewed() { const r = ROWS.find(x => !x.annotation.verdict); if (r) openConversation(r.file); }
+async function openConversation(file) {
+  const run = $("res-run").value;
+  CUR = {run, file, data: await api(`/api/conversation?run=${encodeURIComponent(run)}&file=${encodeURIComponent(file)}`)};
+  const d = CUR.data; const j = ((d.score || {}).judge || [])[0] || {}; const a = d.annotation || {};
+  $("d-title").textContent = `${d.scenario} · ${d.column || "default"}`; $("d-view").hidden = true; $("d-edit").hidden = true; $("d-edit-btn").hidden = true; $("d-conv").hidden = false;
+  const t0 = TESTS.find(s => s.id === d.scenario) || {};
+  const by = store.get("by", "");
+  $("d-conv").innerHTML = `<div class="card" style="margin-top:0"><div class="row"><span class="pill ${esc((d.score || {}).verdict || "-")}">judge: ${esc((d.score || {}).verdict || "-")}</span><span class="muted small">score ${j.score ?? "?"} · steps ${j.steps_completed ?? "?"} · asked first: ${j.asked_before_acting ?? "?"} · fabrication: ${j.fabrication ?? "?"}</span></div>
+      <p style="margin:8px 0 0">${esc(j.reasoning || ((d.score || {}).lines || []).join(" "))}</p>
+      ${(j.violations || []).length ? `<div class="bad small">violations: ${esc(j.violations.join("; "))}</div>` : ""}${(j.fabrication_examples || []).length ? `<div class="warn small">fabrication: ${esc(j.fabrication_examples.join("; "))}</div>` : ""}</div>
+    <div class="card"><strong>Your verdict</strong><div style="margin:8px 0">${["PASS", "FAIL", "UNSURE"].map(v => `<label class="chk"><input type="radio" name="ann-v" value="${v}" ${a.verdict === v ? "checked" : ""}> ${v}</label>`).join("")}</div>
+      <div>${(STATE.issues || []).map(i => `<label class="chk small"><input type="checkbox" class="ann-i" value="${esc(i)}" ${(a.issues || []).includes(i) ? "checked" : ""}> ${esc(i)}</label>`).join("")}</div>
+      <label>comment</label><textarea id="ann-comment">${esc(a.comment || "")}</textarea><label>your name</label><input type="text" id="ann-by" value="${esc(a.by || by)}">
+      <div class="row" style="margin-top:8px"><button class="btn primary" onclick="saveAnnotation()">Save verdict</button><button class="btn" onclick="saveAnnotation(true)">Save and next</button><span id="ann-msg" class="muted small">${a.time ? "last saved " + esc(a.time) + " by " + esc(a.by || "?") : ""}</span></div></div>
+    <details><summary>what the simulated user was told</summary><pre>goal: ${esc(t0.goal || "")}\nhidden: ${esc((t0.hidden || []).join(" | "))}\ndone when: ${esc(t0.done_when || "")}</pre></details>
+    ${(d.turns || []).map(t => {
+      if (!t.user) return `<div class="muted small">the simulated user decided to stop: ${esc((t.sim || {}).why)}</div>`;
+      const calls = (t.calls || []).map(c => `<details><summary>${esc(c.name)}${c.is_error ? ' <span class="bad">error</span>' : ""} <span class="muted">${esc(JSON.stringify(c.input || {}).slice(0, 100))}</span></summary><pre>${esc(JSON.stringify(c.input || {}, null, 1))}\n→ ${esc(String(c.result || "").slice(0, 3000))}</pre></details>`).join("");
+      return `<div class="turn user"><div class="who">user ${t.n}${t.sim && t.sim.why ? ` · ${esc(t.sim.why)}` : ""}</div>${esc(t.user)}</div>
+        <div class="turn assistant"><div class="who">assistant · ${esc(t.reason || "?")} · ${(t.calls || []).length} tool calls · ${Math.round(t.duration_s || 0)} s${t.error ? ` · <span class="bad">${esc(t.error)}</span>` : ""}</div>${esc(t.assistant || "(no reply)")}${calls}</div>`;
+    }).join("")}`;
+  openDrawer(); $("drawer").scrollTop = 0;
+}
+async function saveAnnotation(next) {
+  const v = document.querySelector('input[name="ann-v"]:checked');
+  const ann = {verdict: v ? v.value : "", issues: [...document.querySelectorAll(".ann-i:checked")].map(c => c.value), comment: $("ann-comment").value, by: $("ann-by").value};
+  store.set("by", ann.by);
+  try { const r = await api("/api/annotate", {run: CUR.run, file: CUR.file, annotation: ann}); $("ann-msg").textContent = "saved " + r.time; await loadRun(); if (next) { const n = ROWS.find(x => !x.annotation.verdict); if (n) openConversation(n.file); else closeDrawer(); } }
+  catch (e) { $("ann-msg").textContent = e.message; }
 }
 
-// ── setup ─────────────────────────────────────────────────────────────────
-async function renderSetup() {
-  STATE = await api("/api/state");
-  $("setup-checks").querySelector("tbody").innerHTML = STATE.checks.map(c => `<tr><td class="${c.ok ? "good" : "bad"}">${c.ok ? "OK" : "MISSING"}</td><td>${esc(c.what)}</td><td class="help">${esc(c.detail)}</td></tr>`).join("");
-  $("setup-accounts").querySelector("tbody").innerHTML = (STATE.accounts || []).map(a => `<tr><td>${esc(a.email)}</td><td>${a.profile ? `<span class="pill">${esc(a.profile)}</span>` : '<span class="help">unbound</span>'}</td><td class="help">${a.uses} uses${a.last ? ", last " + esc(a.last.slice(0, 16)) : ""}</td></tr>`).join("") || '<tr><td class="help">no accounts.tsv yet</td></tr>';
-  $("setup-config").querySelector("tbody").innerHTML = Object.entries(STATE.config).map(([k, v]) => `<tr><td>${esc(k)}</td><td><code>${esc(v)}</code></td></tr>`).join("");
+// ── settings ──────────────────────────────────────────────────────────────
+async function loadProfiles() { PROFILES = await api("/api/profiles"); }
+async function renderSettings() {
+  STATE = await api("/api/state"); await loadProfiles();
+  $("set-checks").innerHTML = (STATE.checks || []).map(c => `<div class="check"><span class="dot ${c.ok ? "ok" : "no"}"></span><span>${esc(c.what)}</span><span class="muted small">— ${esc(c.detail)}</span></div>`).join("");
   const ch = STATE.chrome || {}; const mine = myProfile();
-  $("setup-chrome").style.display = STATE.endpoint === "chrome" ? "" : "none";
-  $("setup-accounts-card").style.display = STATE.endpoint === "chrome" ? "none" : "";
-  $("setup-chrome-profile").innerHTML = (ch.profiles || []).map(c => `<option value="${esc(c.dir)}" ${c.dir === mine.chrome_profile ? "selected" : ""}>${esc(c.dir)} — ${esc(c.email || c.name)}</option>`).join("") || '<option value="">no Chrome profiles found</option>';
-  $("setup-chrome-msg").textContent = ch.up ? `running (CDP 127.0.0.1:${ch.port})` : "not running";
+  $("set-chrome-profile").innerHTML = (ch.profiles || []).map(c => `<option value="${esc(c.dir)}" ${c.dir === mine.chrome_profile ? "selected" : ""}>${esc(c.dir)} — ${esc(c.email || c.name)}</option>`).join("") || '<option value="">no Chrome profiles found</option>';
+  $("set-chrome-msg").textContent = ch.up ? `running (port ${ch.port})` : "not running";
+  $("pf-pick").innerHTML = PROFILES.map(p => `<option value="${esc(p.id)}" ${p.id === me() ? "selected" : ""}>${esc(p.name)} (${esc(p.id)})</option>`).join("");
+  editProfile(me());
+  $("set-config").innerHTML = Object.entries(STATE.config).map(([k, v]) => `<div>${esc(k)}</div><div><code>${esc(v)}</code></div>`).join("");
+  renderShare();
 }
+function factsForm(facts) {
+  const keys = STATE.suggested_facts || [];
+  $("p-facts").innerHTML = keys.map(k => `<label>${esc(k)}${["name", "home"].includes(k) ? " *" : ""}</label>${["calendar", "household", "routine"].includes(k) ? `<textarea data-fact="${k}">${esc(facts[k] || "")}</textarea>` : `<input type="text" data-fact="${k}" value="${esc(facts[k] || "")}">`}`).join("");
+  const extra = Object.fromEntries(Object.entries(facts).filter(([k]) => !keys.includes(k))); $("p-extra").value = Object.keys(extra).length ? JSON.stringify(extra) : "";
+}
+function pickers(p) {
+  $("p-fields-help").textContent = (STATE.profile_fields || []).join(", ");
+  $("p-chrome").innerHTML = '<option value="">(pick the Chrome profile signed in to dev)</option>' + ((STATE.chrome || {}).profiles || []).map(c => `<option value="${esc(c.dir)}">${esc(c.dir)} — ${esc(c.email || c.name)}</option>`).join("");
+  $("p-chrome").value = p.chrome_profile || "";
+  $("p-accounts-wrap").hidden = onChrome();
+  $("p-accounts").innerHTML = (STATE.accounts || []).map(a => { const other = a.profile && a.profile !== p.id; return `<label class="chk small"><input type="checkbox" class="p-acct" value="${esc(a.email)}" ${(p.accounts || []).includes(a.email) ? "checked" : ""} ${other ? "disabled" : ""}> ${esc(a.email)}${other ? ` (${esc(a.profile)})` : ""}</label>`; }).join("");
+}
+function editProfile(id) {
+  const p = PROFILES.find(x => x.id === id); if (!p) return;
+  $("p-id").value = p.id; factsForm(p.facts); $("p-style").value = p.style; $("p-limits").value = p.limits.join("\n"); $("p-profile").value = JSON.stringify(p.profile); $("p-email").value = p.email || ""; pickers(p); $("pf-msg").textContent = (p.problems || []).join("; ");
+}
+function newProfile() {
+  const d = PROFILES.find(p => p.id === "default") || {limits: []};
+  $("pf-pick").value = ""; $("p-id").value = ""; factsForm({}); $("p-style").value = ""; $("p-limits").value = d.limits.join("\n"); $("p-profile").value = ""; $("p-email").value = ""; pickers({}); $("pf-msg").textContent = "fill it in and save";
+  $("p-id").focus();
+}
+async function saveProfile() {
+  try {
+    const facts = {}; document.querySelectorAll("#p-facts [data-fact]").forEach(el => { if (el.value.trim()) facts[el.dataset.fact] = el.value.trim(); });
+    if ($("p-extra").value.trim()) Object.assign(facts, JSON.parse($("p-extra").value));
+    const body = {id: $("p-id").value.trim(), facts, style: $("p-style").value.trim(), limits: $("p-limits").value.split("\n").map(x => x.trim()).filter(Boolean),
+                  profile: $("p-profile").value.trim() ? JSON.parse($("p-profile").value) : {}, accounts: [...document.querySelectorAll(".p-acct:checked")].map(c => c.value), email: $("p-email").value.trim(), chrome_profile: $("p-chrome").value};
+    const r = await api("/api/profiles", body);
+    $("pf-msg").textContent = r.problems.length ? "saved; notes: " + r.problems.join("; ") : "saved ✓";
+    await loadProfiles(); fillMe(); $("me").value = r.id; store.set("profile", r.id); noteMe(); await loadTests(); renderSettings();
+  } catch (e) { $("pf-msg").textContent = "not saved: " + e.message; }
+}
+async function deleteProfile() { const id = $("p-id").value.trim(); if (!id) return; $("pf-msg").textContent = "deleting…"; try { const r = await api("/api/profiles/delete", {id}); if (!r.deleted) throw new Error("the default profile cannot be deleted"); await loadProfiles(); fillMe(); renderSettings(); } catch (e) { $("pf-msg").textContent = e.message; } }
 async function startChrome() {
-  const dir = $("setup-chrome-profile").value; if (!dir) return;
-  if (!confirm(`Copy Chrome profile "${dir}" (with its sign-ins) into the tool's folder and start a second Chrome from it?`)) return;
-  $("setup-chrome-msg").textContent = "starting…";
-  try { const r = await api("/api/chrome/start", {profile_directory: dir}); $("setup-chrome-msg").textContent = (r.log || []).slice(-1)[0] || "started"; STATE = await api("/api/state"); renderSetup(); }
-  catch (e) { $("setup-chrome-msg").textContent = e.message; }
+  const dir = $("set-chrome-profile").value || myProfile().chrome_profile; if (!dir) { go("settings"); $("set-chrome-msg").textContent = "pick the Chrome profile signed in to dev first"; return; }
+  $("set-chrome-msg").textContent = "starting…"; $("home-chrome-btn").textContent = "starting…";
+  try { const r = await api("/api/chrome/start", {profile_directory: dir}); $("set-chrome-msg").textContent = (r.log || []).slice(-1)[0] || "started"; STATE = await api("/api/state"); $("home-chrome-btn").textContent = "Start my Chrome"; if (!$("page-home").hidden) renderHome(); }
+  catch (e) { $("set-chrome-msg").textContent = e.message; $("home-chrome-btn").textContent = "Start my Chrome"; }
 }
+async function renderShare() {
+  if (!$("share-who").value) $("share-who").value = store.get("by", "");
+  try { const st = await api("/api/sync"); $("share-status").innerHTML = st.error ? `<span class="bad">${esc(st.error)}</span>` : `changed here: ${st.changed.length ? st.changed.map(f => `<code>${esc(f)}</code>`).join(", ") : "nothing"} · ${st.behind ? `<span class="warn">${st.behind} update(s) from others waiting</span>` : "up to date with the team"}${st.ahead ? ` · ${st.ahead} of yours not yet shared` : ""}`; }
+  catch (e) { $("share-status").textContent = e.message; }
+}
+async function sharePull() { $("share-result").textContent = "getting updates…"; try { const r = await api("/api/sync/pull", {}); $("share-result").textContent = r.result; await loadTests(); await loadProfiles(); renderShare(); } catch (e) { $("share-result").textContent = e.message; } }
+async function sharePush() { const who = $("share-who").value.trim(); if (!who) { $("share-result").textContent = "put your name in"; return; } store.set("by", who); $("share-result").textContent = "sharing…"; try { const r = await api("/api/sync/push", {who, message: $("share-msg").value}); $("share-result").textContent = r.result; renderShare(); } catch (e) { $("share-result").textContent = e.message; } }
 boot();
 </script>
 </body>

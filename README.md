@@ -67,7 +67,7 @@ tick *calibrate memory first* on your next run.
 
 ## 4. Your first run
 
-1. **Scenarios** tab: the scenario bank, linted against your profile. Click a row to read it. Start with the `daily` set (6 simple tasks).
+1. **Tests** page: the bank, grouped by category. Each category has two tests from The Hark 100: an **open** one (the tester's prompt as written; the simulated user gives details only when asked) and a **preset** one (the conditions are in the prompt, with ordered steps). Click a card to read it.
 2. **Run** tab: **tick the models** to test (one checkbox per column; `default` is the product's normal model), **tick the scenarios**
    (or *select set* / *all*), choose repeats, click **Start**. The line under the button tells you how many conversations that is.
    A 3–5 turn conversation takes 3–15 minutes; in your Chrome they run one after another (one window, one account), so a batch of
@@ -99,7 +99,7 @@ Click **New scenario** in the Scenarios tab (or edit the `.jsonl` file by hand �
 | `done_when` | When the person considers it done. Also the judge's hard requirement — be concrete ("a named shop with address and hours", not "the user is happy"). |
 | `beats` | Optional ordered sub-goals for multi-step tasks; the user raises the next one only once the current one is settled. |
 | `reveal` | Optional: how hidden facts come out (default: only when asked, one per reply). |
-| `max_turns` | Optional: user messages for this scenario (default 5 from `config.json`; the `complex` set uses 8). |
+| `max_turns` | Optional: user messages for this scenario (default 5 from `config.json`; open tests use 4, preset tests 6). |
 | `tags` | Free labels for filtering. |
 | `leaves` | What the task creates on the account (calendar entries, reminders, pages). The *clean up after* option uses it to ask the assistant to undo exactly that. |
 | `user` | Optional facts that differ from the profile for this scenario, e.g. `{"car": "2016 Subaru Outback"}`. |
@@ -150,7 +150,7 @@ The folder you cloned is the team's shared bank. **Share** tab:
   Only `scenarios/`, `profiles/` and `config.json` are ever shared; results and secrets never are.
 
 Put your scenarios in a set named after you or the topic — `scenarios/anderson_shopping.jsonl` — so two people never edit the
-same file. Keep the shared sets (`daily`, `complex`) for things everyone agrees on. Same from the command line:
+same file. Keep the category sets (`local`, `restaurants`, …) for things everyone agrees on. Same from the command line:
 `python3 -m behavioreval sync status | pull | push --who anderson -m "3 shopping scenarios"`.
 
 ## 7. Command line (the UI uses the same commands)
@@ -162,9 +162,9 @@ python3 -m behavioreval chrome --profile-directory "Profile 3"  # copy it and st
 python3 -m behavioreval profiles                                # the simulated people, their accounts / Chrome profiles
 python3 -m behavioreval scenarios                               # list the bank
 python3 -m behavioreval lint --profile anderson                 # unresolved placeholders, missing done_when, account clashes
-python3 -m behavioreval simulate --profile anderson --scenario daily/01_mechanic_mirror --assistant "Which city are you in?"
-python3 -m behavioreval run --profile anderson --scenarios daily --columns default,claude-opus-5-5 --parallel 4 --tag first
-python3 -m behavioreval run --profile anderson --scenarios complex --only complex/01_mirror_shop_calendar --runs 2 --cleanup
+python3 -m behavioreval simulate --profile anderson --scenario local/01_open_mechanic_mirror --assistant "Which city are you in?"
+python3 -m behavioreval run --profile anderson --scenarios local --columns default,claude-opus-5-5 --tag first
+python3 -m behavioreval run --profile anderson --scenarios all --only trips/02_preset_greece_march --runs 2 --cleanup
 python3 -m behavioreval run --profile anderson --scenarios all --resume ~/behavioreval-data/runs/20261021-1200-first   # finish an interrupted run
 python3 -m behavioreval rescore ~/behavioreval-data/runs/<run> --only-unreadable        # re-judge after a judge hiccup
 python3 -m behavioreval audit ~/behavioreval-data/runs/<run> --sample 10 --repeats 2    # judge agreement with itself
@@ -182,7 +182,7 @@ or with `BEHAVIOREVAL_<KEY>` environment variables.
 ```
 behavioreval/        the code (core/, endpoints/, scorers/, ui/, tools/)
 profiles/<id>.json   one simulated person per tester: facts, style, limits, their dev account and Chrome profile (commit yours)
-scenarios/*.jsonl    the scenario bank — daily (simple), complex (multi-step, 8 turns), setup (prep an account), maint (calibrate / cleanup)
+scenarios/*.jsonl    the bank — one file per category (local, restaurants, trips, shopping, gifts, fitness, events, groceries: open + preset each), setup (prep an account), maint (calibrate / cleanup)
 config.json          every knob of a run, incl. the models offered in the Run tab
 .env                 your OpenRouter key (never committed); accounts.tsv only for the eval_system endpoint
 ~/.behavioreval/     the copied Chrome profile the tool's Chrome runs from (delete it when you are done)

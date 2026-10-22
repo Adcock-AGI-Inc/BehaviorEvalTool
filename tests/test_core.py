@@ -118,7 +118,7 @@ class ScenarioTests(unittest.TestCase):
         self.assertTrue(scenario.sets(cfg.scenarios_dir))
         for s in scenario.sets(cfg.scenarios_dir):
             self.assertEqual(scenario.lint_all(scenario.resolve(s, directory=cfg.scenarios_dir), u), [], s)
-        self.assertGreater(len(scenario.resolve("all", directory=cfg.scenarios_dir)), 20)
+        self.assertGreaterEqual(len(scenario.resolve("all", directory=cfg.scenarios_dir)), 16)
 
     def test_save_delete_keep_comments_and_replace_in_place(self):
         d = Path(tempfile.mkdtemp())
