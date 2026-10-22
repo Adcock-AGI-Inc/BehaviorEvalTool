@@ -9,7 +9,7 @@ from typing import Protocol
 
 from behavioreval.core.config import Config
 
-NAMES = {"evalsystem": "behavioreval.endpoints.evalsystem", "openai_chat": "behavioreval.endpoints.openai_chat", "fake": "behavioreval.endpoints.fake"}
+NAMES = {"chrome": "behavioreval.endpoints.chrome", "evalsystem": "behavioreval.endpoints.evalsystem", "openai_chat": "behavioreval.endpoints.openai_chat", "fake": "behavioreval.endpoints.fake"}
 
 
 @dataclass

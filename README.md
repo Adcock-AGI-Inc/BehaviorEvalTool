@@ -5,14 +5,14 @@ You write **scenarios** (what the person wants, what they hold back, when they a
 few turns; the assistant's replies and tool calls are recorded; a judge model grades the conversation; you read and
 annotate the results in a web page.
 
-Every tester runs as their own **profile** — a simulated person with facts, a typing style, limits, and **their own test
-accounts**. An account bound to a profile is never used by anyone else, so the assistant's memory on it stays one person's.
+Every tester runs as their own **profile** — a simulated person with facts, a typing style, limits, **their own dev account and
+the Chrome profile signed in to it**. Runs happen in a copy of that Chrome, so the assistant's memory stays that one person's.
 
 ```
 profile (who I am, my accounts)  +  scenario (opening, goal, hidden facts, done_when)
         │
         ▼
- simulated user  ──message──▶  Hark assistant on dev (one of my accounts)  ──reply + tool calls──▶  record
+ simulated user  ──message──▶  Hark assistant on dev (my account, in my Chrome)  ──reply + tool calls──▶  record
  (OpenRouter LLM) ◀── reply ──                                                                       │
         │  {say, done, why}                                                                          ▼
         └── until done / max turns                                                      judge (OpenRouter LLM) → PASS / FAIL + reasons
@@ -21,8 +21,8 @@ profile (who I am, my accounts)  +  scenario (opening, goal, hidden facts, done_
                                                                                       web UI: read, annotate, export CSV
 ```
 
-Everything is plain Python 3 (nothing to install for the tool itself). The only moving part that needs setup is the
-connection to dev, which goes through the `eval_system` client that lives in the `mvp` repository.
+Everything is plain Python 3 (nothing to install for the tool itself). It drives a copy of your own Chrome, signed in to dev as you,
+and reads run outcomes from the trajectory viewer.
 
 ---
 
@@ -31,43 +31,47 @@ connection to dev, which goes through the `eval_system` client that lives in the
 | | What | Where to get it |
 |---|---|---|
 | 1 | **Python 3.10+** | macOS has it: `python3 --version` |
-| 2 | **`uv`** (runs the eval_system client) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
-| 3 | **A checkout of `mvp`** at `~/Documents/mvp` (or set `mvp_dir` in `config.json`) | `git clone git@github.com:Adcock-AGI-Inc/mvp.git ~/Documents/mvp` — you need read access to that repo |
-| 4 | **Cloudflare Access token** for dev (`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`) | ask the platform team; it lets scripts reach `dev.hark.com` |
-| 5 | **An OpenRouter key** (`OPENROUTER_API_KEY`) | https://openrouter.ai/keys — the simulated user and the judge run on DeepSeek V4.1 Flash there; a run of 30 scenarios costs well under a dollar |
-| 6 | **Test accounts** on dev (`email` + `password`, the `eval.party` ones) | ask Eric for a block; 3–5 accounts per tester is plenty |
+| 2 | **Google Chrome, signed in to dev** | open https://dev.hark.com in Chrome and sign in (Cloudflare Access → Google) with your own account |
+| 3 | **`cloudflared`, signed in to the trajectory viewer** | `brew install cloudflared`, then once: `cloudflared access login https://trajectory.tools.hark.com` (a browser window asks you to sign in). The viewer tells the tool when a run ended and which tools it called. |
+| 4 | **An OpenRouter key** (`OPENROUTER_API_KEY`) | https://openrouter.ai/keys — the simulated user and the judge run on DeepSeek V4.1 Flash there; a run of 30 scenarios costs well under a dollar |
+
+No test-account pool, no `mvp` checkout, no service tokens: the tool runs in a copy of your own Chrome, as you.
+(The `eval_system` endpoint with password test accounts still exists for people who have those; set `endpoint` in `config.json`.)
 
 ## 2. First-time setup (10 minutes)
 
 ```bash
 git clone git@github.com:Adcock-AGI-Inc/BehaviorEvalTool.git
 cd BehaviorEvalTool
-cp .env.example .env                   # fill in OPENROUTER_API_KEY, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET
-cp accounts.example.tsv accounts.tsv   # one line per test account: email <TAB> password
-python3 -m behavioreval check          # every line must say OK
+cp .env.example .env                   # fill in OPENROUTER_API_KEY (the other lines can stay empty)
+python3 -m behavioreval check          # every line must say OK (except "the tool's Chrome is up", see step 3)
 python3 -m behavioreval ui             # opens http://127.0.0.1:8765 (local only)
 ```
 
-`check` tells you exactly what is still missing. `.env` and `accounts.tsv` are ignored by git and never leave your machine.
-The **Setup** tab of the web page shows the same checks plus which account belongs to whom.
+`check` tells you exactly what is still missing. `.env` is ignored by git and never leaves your machine.
 
-## 3. Make your profile (once)
+## 3. Make your profile and start your Chrome (once)
 
-**Profiles** tab → **New profile**. Give it your first name as the id, fill in the facts (name, home, car, household, calendar…),
-how this person types, what they never do, and **tick the accounts that are yours**. Accounts already ticked by someone else are greyed out.
-Save, then pick yourself in the **"I am"** box at the top right — everything you do from now on (lint, preview, runs) is as that person
-on those accounts. The facts you type are what `{home}`, `{car}`, `{calendar}` … in scenarios turn into.
+**Profiles** tab → **New profile**. Give it your first name as the id, fill in the facts (name, home, car, household, calendar…) —
+*the facts the assistant should know about you; keep them consistent with what you have told it before* — how you type, what you
+never do, **your dev account email**, and **the Chrome profile that is signed in to dev** (the list comes from your Chrome; the
+email next to each entry tells you which). Save, then pick yourself in the **"I am"** box at the top right.
 
-Do not type real people's details into a profile: the accounts are shared and recorded. Invent the person.
+**Setup** tab → **Start the tool's Chrome**. The tool copies that Chrome profile (sign-in included) into its own folder and opens a
+second Chrome window from it. Your everyday Chrome keeps running; leave the new window alone while runs happen — you can watch
+the conversations in it. If it ever shows a Cloudflare or Google sign-in page, sign in there once and start it again.
 
-The checked-in `default` profile ("Alex Morgan", no bound accounts) runs on whatever accounts nobody has claimed.
+Everything you run from now on happens in that window, as your account, so the assistant's memory stays yours. Do not type other
+people's details into a profile: the conversations are recorded. If your facts and the assistant's notes about you have drifted,
+tick *calibrate memory first* on your next run.
 
 ## 4. Your first run
 
 1. **Scenarios** tab: the scenario bank, linted against your profile. Click a row to read it. Start with the `daily` set (6 simple tasks).
 2. **Run** tab: **tick the models** to test (one checkbox per column; `default` is the product's normal model), **tick the scenarios**
    (or *select set* / *all*), choose repeats, click **Start**. The line under the button tells you how many conversations that is.
-   A 3–5 turn conversation takes 3–15 minutes; several run in parallel, one per account.
+   A 3–5 turn conversation takes 3–15 minutes; in your Chrome they run one after another (one window, one account), so a batch of
+   20 is an afternoon — start it and come back.
 3. Watch the run's log on the right (click the run). When it is finished, click **results**.
 4. **Results** tab: every conversation with the judge's verdict. Click one to read it turn by turn — the user's messages,
    the assistant's replies, every tool call with its result (expand them), the judge's reasoning — and give **your own verdict**
@@ -121,7 +125,7 @@ An "eval" here is a set: one file `scenarios/<set>.jsonl` with a theme (shopping
 2. Write 5–20 scenarios with the fields above; give them a common `tag`.
 3. `python3 -m behavioreval lint` (or look at the lint column in the UI) until every scenario is clean.
 4. If the set needs state on the account first (a calendar, standing facts), run `setup/01_calendar_to_memory` once per account with the judge off.
-5. Run the set on each model you want to compare. Use the same scenarios, the same profile and accounts and the same number of repeats
+5. Run the set on each model you want to compare. Use the same scenarios, the same profile and the same number of repeats
    for every model, or the pass rates are not comparable.
 6. Read the results, annotate, export the CSV. `python3 -m behavioreval audit <run dir>` re-judges a sample to check that the judge is stable.
 
@@ -133,7 +137,9 @@ Models ("columns"): the list offered in the Run tab comes from `columns` in `con
 
 ```bash
 python3 -m behavioreval check                                   # is everything in place
-python3 -m behavioreval profiles                                # the simulated people and their accounts
+python3 -m behavioreval chrome --list                           # the Chrome profiles on this machine (which one is signed in to dev)
+python3 -m behavioreval chrome --profile-directory "Profile 3"  # copy it and start the tool's Chrome (the Setup tab does the same)
+python3 -m behavioreval profiles                                # the simulated people, their accounts / Chrome profiles
 python3 -m behavioreval scenarios                               # list the bank
 python3 -m behavioreval lint --profile anderson                 # unresolved placeholders, missing done_when, account clashes
 python3 -m behavioreval simulate --profile anderson --scenario daily/01_mechanic_mirror --assistant "Which city are you in?"
@@ -155,10 +161,11 @@ or with `BEHAVIOREVAL_<KEY>` environment variables.
 
 ```
 behavioreval/        the code (core/, endpoints/, scorers/, ui/, tools/)
-profiles/<id>.json   one simulated person per tester, with the accounts bound to them (commit yours so the binding is shared)
+profiles/<id>.json   one simulated person per tester: facts, style, limits, their dev account and Chrome profile (commit yours)
 scenarios/*.jsonl    the scenario bank — daily (simple), complex (multi-step, 8 turns), setup (prep an account), maint (calibrate / cleanup)
 config.json          every knob of a run, incl. the models offered in the Run tab
-accounts.tsv, .env   your secrets (never committed)
+.env                 your OpenRouter key (never committed); accounts.tsv only for the eval_system endpoint
+~/.behavioreval/     the copied Chrome profile the tool's Chrome runs from (delete it when you are done)
 ~/behavioreval-data/ everything a run produces (never committed):
   runs/<time>-<tag>/<model>__<account>__<scenario>.conversation.json   turns, tool calls, judge verdict, your annotation
   runs/<time>-<tag>/report.md, summary.json
@@ -173,13 +180,17 @@ accounts.tsv, .env   your secrets (never committed)
   assistant sometimes downloads an image and looks at it; the lane cannot take images, the run fails, and the conversation is dead
   from then on. This is a product-side issue, not the scenario's. Prefer `default` or a vision-capable model for tasks that involve
   pictures or pages with images; count those conversations separately.
-- **Sign-in errors for an account.** Password sign-in is rate-limited; sessions are cached under `~/.cache/hark-eval-clear/` so each account
-  signs in once. Wait a few minutes and run again (`--resume` keeps what finished).
+- **"this Chrome is not signed in to https://dev.hark.com".** The copied profile's session expired. Sign in to dev in your everyday
+  Chrome, then Setup → *Start the tool's Chrome* again (it re-copies the profile). `--resume` keeps what already finished.
+- **"0 of 1 runs ended … viewer shows 0 run(s)".** The trajectory viewer does not list your account's runs (it is per signed-in user:
+  `cloudflared access login` must be the same Google account as dev), or the run is still going. Check `cloudflared access token --app https://trajectory.tools.hark.com`.
+- **Nothing happens in the Chrome window / "no Chrome answering".** Start it from the Setup tab; if a window is open but not answering,
+  quit that Chrome (the one with the plain profile icon) and start it again.
 - **Verdict UNREADABLE.** The judge's answer could not be parsed (usually a transient model error). `rescore --only-unreadable` fixes it.
 - **The user says "hold on, can you say that again in one line?"** That is the user model's safe fallback when its own answer could not
   be read; it never authorizes anything. One or two per run is normal; many means the user model is misconfigured.
-- **Memory carries over between runs on the same account.** The assistant remembers earlier conversations. That is why accounts are bound
-  to one profile. Use *calibrate memory first* for a clean start and *clean up after* for tasks that create calendar entries or reminders.
+- **Memory carries over between runs.** The assistant remembers earlier conversations on your account; that is why each profile is one
+  person on one account. Use *calibrate memory first* for a clean start and *clean up after* for tasks that create calendar entries or reminders.
 
 ## 10. Tests
 

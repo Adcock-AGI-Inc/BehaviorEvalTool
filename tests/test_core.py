@@ -42,7 +42,7 @@ class ConfigTests(unittest.TestCase):
 
     def test_the_checked_in_config_and_default_profile_load(self):
         cfg = config.load(environ={})
-        self.assertEqual((cfg.max_turns, cfg.endpoint, cfg.profile), (5, "evalsystem", "default"))
+        self.assertEqual((cfg.max_turns, cfg.endpoint, cfg.profile), (5, "chrome", "default"))
         self.assertEqual([c["id"] for c in cfg.columns][:1], ["default"])
         self.assertEqual(config.load(None, {"BEHAVIOREVAL_COLUMNS": "default, slot7"}).columns[1], {"id": "slot7", "label": "slot7"})
         u = profile_mod.load(cfg.profiles_dir, "default")
@@ -241,6 +241,10 @@ class LedgerAndPlanTests(unittest.TestCase):
         self.assertEqual((jobs[0][0].goal, jobs[0][1].id), ("a shop near Sunnyvale, CA", "alex"))
         with self.assertRaises(ValueError):
             plan_jobs(cfg, [scenario.from_dict({**MECH, "goal": "{office}"}, "t")], ["default"], 1, ["a@x"], {}, ALEX)
+        long = scenario.from_dict({**MECH, "max_turns": 8}, "t")
+        self.assertEqual(plan_jobs(cfg, [long], ["default"], 1, [], {}, ALEX)[0][0].max_turns, 8)                       # the scenario's own
+        capped = config.load(None, {}, {"max_turns": 2})
+        self.assertEqual(plan_jobs(capped, [long], ["default"], 1, [], {}, ALEX)[0][0].max_turns, 2)                   # an explicit --max-turns caps it
 
 
 class UITests(unittest.TestCase):
@@ -273,8 +277,11 @@ class UITests(unittest.TestCase):
         self.assertEqual((st["default_profile"], st["sets"], [p["id"] for p in st["profiles"]]), ("default", ["local"], ["default"]))
         self.assertTrue(any(not c["ok"] for c in st["checks"]))
         # profiles: bind accounts, exclusivity, usable accounts of an unbound profile
-        r = self.call("/api/profiles", {"id": "anderson", "facts": {"name": "Anderson", "home": "Oakland, CA", "car": "2016 Subaru"}, "accounts": ["a1@x", "a2@x"]})
+        r = self.call("/api/profiles", {"id": "anderson", "facts": {"name": "Anderson", "home": "Oakland, CA", "car": "2016 Subaru"}, "accounts": ["a1@x", "a2@x"],
+                                        "email": "anderson@hark.com", "chrome_profile": "Profile 3"})
         self.assertEqual((r["id"], r["problems"]), ("anderson", []))
+        self.assertEqual([(p["email"], p["chrome_profile"]) for p in self.call("/api/state")["profiles"] if p["id"] == "anderson"], [("anderson@hark.com", "Profile 3")])
+        self.assertIn("chrome", self.call("/api/state"))
         with self.assertRaises(urllib.error.HTTPError):
             self.call("/api/profiles", {"id": "ben", "facts": {"name": "Ben", "home": "x"}, "accounts": ["a1@x"]})   # a1 belongs to anderson
         rows = {p["id"]: p for p in self.call("/api/profiles")}

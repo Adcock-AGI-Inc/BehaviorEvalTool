@@ -10,9 +10,15 @@
   "lane": "",
   "model": "",
   "model_provider": "",
-  "endpoint": "evalsystem",
+  "endpoint": "chrome",
   "endpoint_url": "",
   "env": "dev",
+  "web_url": "",
+  "timezone": "America/Los_Angeles",
+  "viewer_url": "https://trajectory.tools.hark.com",
+  "chrome_port": 9343,
+  "chrome_dir": "~/Library/Application Support/Google/Chrome",
+  "chrome_profile_dir": "~/.behavioreval/chrome",
   "judge_model": "deepseek/deepseek-v4.1-flash-1017",
   "judge_provider": "deepinfra/fp8",
   "judge_samples": 1,
@@ -25,9 +31,18 @@
   "profiles_dir": "profiles",
   "profile": "default",
   "columns": [
-    {"id": "default", "label": "Product default model (what users get today)"},
-    {"id": "claude-opus-5-5", "label": "Claude Opus 5.5 (catalog model override)"},
-    {"id": "slot20", "label": "Lane slot20 (self-hosted text-only model)"}
+    {
+      "id": "default",
+      "label": "Product default model (what users get today)"
+    },
+    {
+      "id": "claude-opus-5-5",
+      "label": "Claude Opus 5.5 (catalog model override)"
+    },
+    {
+      "id": "slot20",
+      "label": "Lane slot20 (self-hosted text-only model)"
+    }
   ],
   "scenarios_dir": "scenarios",
   "session_cache": "~/.cache/hark-eval-clear",

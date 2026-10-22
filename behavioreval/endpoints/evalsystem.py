@@ -80,7 +80,6 @@ def check(cfg: Config) -> list[tuple[str, bool, str]]:
            ("uv on PATH", bool(shutil.which("uv")), shutil.which("uv") or "install: https://docs.astral.sh/uv/"),
            ("mvp checkout", cfg.eval_dir.exists(), str(cfg.eval_dir)),
            ("Cloudflare Access token", bool(sec.get("CF_ACCESS_CLIENT_ID") and sec.get("CF_ACCESS_CLIENT_SECRET")), f"CF_ACCESS_CLIENT_ID / _SECRET in {cfg.secrets_file.name}"),
-           ("OpenRouter key", bool(sec.get("OPENROUTER_API_KEY")), f"OPENROUTER_API_KEY in {cfg.secrets_file.name}"),
            ("accounts", bool(accounts), f"{len(accounts)} in {cfg.accounts_file.name}" if accounts else f"copy accounts.example.tsv to {cfg.accounts_file.name}"),
            ("cached sessions", True, f"{len([e for e in accounts if cached_session(cfg, e)])} of {len(accounts)} signed in before")]
     return out

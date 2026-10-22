@@ -23,7 +23,9 @@ class Profile:
     style: str = ""
     limits: list[str] = field(default_factory=list)
     profile: dict = field(default_factory=dict)      # written into the account's profile page before a conversation
-    accounts: list[str] = field(default_factory=list)   # test accounts that belong to this person (emails; passwords stay in accounts.tsv)
+    accounts: list[str] = field(default_factory=list)   # evalsystem endpoint: test accounts that belong to this person (passwords stay in accounts.tsv)
+    email: str = ""                                   # chrome endpoint: the dev account this person is signed in as (informational, recorded on every conversation)
+    chrome_profile: str = ""                          # chrome endpoint: the Chrome profile directory ("Default", "Profile 3") signed in as that account
 
     @property
     def name(self) -> str:
@@ -46,7 +48,8 @@ class Profile:
         return replace(self, facts={**self.facts, **o}, style=style, limits=limits)
 
     def to_dict(self) -> dict:
-        return {"id": self.id, "facts": self.facts, "style": self.style, "limits": self.limits, "profile": self.profile, "accounts": self.accounts}
+        return {"id": self.id, "facts": self.facts, "style": self.style, "limits": self.limits, "profile": self.profile, "accounts": self.accounts,
+                "email": self.email, "chrome_profile": self.chrome_profile}
 
 
 def from_dict(d: dict, where: str = "profile") -> Profile:
@@ -66,7 +69,7 @@ def from_dict(d: dict, where: str = "profile") -> Profile:
     if not isinstance(accounts, list) or any(not isinstance(a, str) or "@" not in a for a in accounts):
         raise ValueError(f"{where}: accounts must be a list of emails")
     return Profile(id=pid, facts=facts, style=str(d.get("style") or ""), limits=[str(x) for x in d.get("limits") or []], profile=profile,
-                   accounts=[a.strip() for a in accounts])
+                   accounts=[a.strip() for a in accounts], email=str(d.get("email") or "").strip(), chrome_profile=str(d.get("chrome_profile") or "").strip())
 
 
 def load_file(path: Path) -> Profile:

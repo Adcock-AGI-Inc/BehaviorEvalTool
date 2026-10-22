@@ -229,15 +229,27 @@ class State:
                 out["next"] = {"say": reply.say, "done": reply.done, "why": reply.why, "unreadable": reply.unreadable}
         return out
 
+    def chrome_start(self, profile_directory: str) -> dict:
+        from behavioreval.browser import chrome
+        lines: list[str] = []
+        chrome.start(self.cfg.chrome_dir, profile_directory, self.cfg.chrome_profile_dir, self.cfg.chrome_port, lines.append)
+        return {"ok": True, "log": lines}
+
     def state(self) -> dict:
-        from behavioreval.endpoints.evalsystem import check
+        from behavioreval.browser import cdp, chrome
+        from behavioreval.core.config import secrets
+        if self.cfg.endpoint == "chrome":
+            from behavioreval.endpoints.chrome import check
+        else:
+            from behavioreval.endpoints.evalsystem import check
         led = ledger.load(ledger.path_for(self.cfg.data_root))
         profiles = self.profiles()
         bound = profile_mod.bound_accounts(profiles)
-        return {"config": {k: str(getattr(self.cfg, k)) for k in ("user_model", "judge_model", "max_turns", "endpoint", "env", "lane", "model", "data_root", "scenarios_dir", "profiles_dir")},
-                "checks": [{"what": w, "ok": ok, "detail": d} for w, ok, d in check(self.cfg)],
+        return {"config": {k: str(getattr(self.cfg, k)) for k in ("user_model", "judge_model", "max_turns", "endpoint", "env", "viewer_url", "chrome_port", "chrome_dir", "data_root", "scenarios_dir", "profiles_dir")},
+                "checks": [{"what": w, "ok": ok, "detail": d} for w, ok, d in check(self.cfg)] + [{"what": "OpenRouter key", "ok": bool(secrets(self.cfg).get("OPENROUTER_API_KEY")), "detail": f"OPENROUTER_API_KEY in {self.cfg.secrets_file.name}"}],
+                "endpoint": self.cfg.endpoint, "chrome": {"up": cdp.up(self.cfg.chrome_port), "port": self.cfg.chrome_port, "profiles": chrome.list_profiles(self.cfg.chrome_dir)},
                 "accounts": [{"email": a, "uses": len(led.get(a, [])), "last": (led.get(a) or [{}])[-1].get("time", ""), "profile": bound.get(a, "")} for a in self.all_accounts()],
-                "profiles": [{"id": p.id, "name": p.name, "accounts": p.accounts} for p in profiles.values()],
+                "profiles": [{"id": p.id, "name": p.name, "accounts": p.accounts, "email": p.email, "chrome_profile": p.chrome_profile} for p in profiles.values()],
                 "default_profile": self.cfg.profile, "columns": self.cfg.columns, "suggested_facts": list(profile_mod.SUGGESTED_FACTS), "profile_fields": list(profile_mod.PROFILE_FIELDS),
                 "sets": scenario.sets(self.cfg.scenarios_dir), "issues": ISSUES, "default_column": config_mod.column(self.cfg)[0], "root": str(ROOT)}
 
@@ -319,6 +331,8 @@ def make_handler(state: State):
                     return self._send(200, state.preview(req))
                 if path == "/api/runs/start":
                     return self._send(200, state.start_run(req))
+                if path == "/api/chrome/start":
+                    return self._send(200, state.chrome_start(str(req.get("profile_directory") or "")))
                 if path == "/api/runs/stop":
                     return self._send(200, {"stopped": state.stop_run(str(req.get("tag") or ""))})
                 if path == "/api/annotate":

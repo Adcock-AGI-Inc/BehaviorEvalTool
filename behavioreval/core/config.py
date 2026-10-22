@@ -25,9 +25,15 @@ class Config:
     lane: str = ""                     # hark-slotN for a self-hosted lane; "" = the product's default model
     model: str = ""                    # explicit per-message model override (e.g. claude-opus-5-5); empty = derived from lane
     model_provider: str = ""           # provider for the override; empty = none (lane sugar sets hark-slotN)
-    endpoint: str = "evalsystem"       # evalsystem | openai_chat | fake
+    endpoint: str = "chrome"           # chrome (your own account in your own Chrome) | evalsystem (test accounts, needs mvp) | openai_chat | fake
     endpoint_url: str = ""             # openai_chat: the /v1 base
     env: str = "dev"
+    web_url: str = ""                  # the app's URL; empty = derived from env (dev → https://dev.hark.com)
+    timezone: str = "America/Los_Angeles"
+    viewer_url: str = "https://trajectory.tools.hark.com"   # the trajectory viewer: run end + tool calls (chrome endpoint)
+    chrome_port: int = 9343            # the DevTools port of the tool's own Chrome
+    chrome_dir: Path = Path("~/Library/Application Support/Google/Chrome")   # where Chrome keeps its profiles
+    chrome_profile_dir: Path = Path("~/.behavioreval/chrome")               # the copied profile the tool's Chrome runs from
     judge_model: str = "deepseek/deepseek-v4.1-flash-1017"
     judge_provider: str = "deepinfra/fp8"
     judge_samples: int = 1
@@ -51,7 +57,7 @@ class Config:
         return self.mvp_dir / "services" / "eval_system"
 
 
-_PATHS = {"data_root", "mvp_dir", "accounts_file", "profiles_dir", "scenarios_dir", "session_cache", "secrets_file"}
+_PATHS = {"data_root", "mvp_dir", "accounts_file", "profiles_dir", "scenarios_dir", "session_cache", "secrets_file", "chrome_dir", "chrome_profile_dir"}
 SECRET_KEYS = ("CF_ACCESS_CLIENT_ID", "CF_ACCESS_CLIENT_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "OPENROUTER_API_KEY")
 _BOOLS = {"seed_profile", "history_in_briefing"}
 

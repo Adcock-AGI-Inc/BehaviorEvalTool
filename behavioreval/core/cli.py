@@ -68,6 +68,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--show-prompt", action="store_true")
     _add_config_flags(s)
     sub.add_parser("accounts", help="the test accounts, who they belong to and how often each was used")
+    ch = sub.add_parser("chrome", help="start the tool's own Chrome from your signed-in Chrome profile (copies it; your everyday Chrome keeps running)")
+    ch.add_argument("--profile-directory", dest="profile_directory", help='the Chrome profile signed in to dev ("Default", "Profile 3"); default: the profile\'s chrome_profile')
+    ch.add_argument("--list", action="store_true", help="only list the Chrome profiles found")
+    _add_config_flags(ch)
     sub.add_parser("check", help="is everything in place to run on dev? (uv, mvp checkout, secrets, accounts)")
     sub.add_parser("config", help="the effective settings and where each came from")
     rs = sub.add_parser("rescore", help="re-judge the saved conversations of a run directory")
@@ -98,11 +102,15 @@ def plan_jobs(cfg, scenarios, columns, runs, accounts, led, person):
     if problems:
         raise ValueError("lint first: " + "; ".join(f"{i}: {p}" for i, p in problems[:5]))
     order = ledger.least_used_first(led, accounts) if accounts else [""]
+    cap = cfg.max_turns if cfg.source.get("max_turns") == "cli" else None   # an explicit --max-turns caps a scenario's own value
     jobs, k = [], 0
     for col in columns:
         for sc in scenarios:
             for _ in range(runs):
-                jobs.append((scenario.render(sc, person), scenario.profile_for(sc, person), order[k % len(order)], col))
+                r = scenario.render(sc, person)
+                if cap and (r.max_turns is None or r.max_turns > cap):
+                    r.max_turns = cap
+                jobs.append((r, scenario.profile_for(sc, person), order[k % len(order)], col))
                 k += 1
     return jobs
 
@@ -211,16 +219,24 @@ def cmd_run(args) -> int:
     columns = [c.strip() for c in (args.columns or "").split(",") if c.strip()] or [config.column(cfg)[0]]
     endpoint_name = args.endpoint or cfg.endpoint
     all_accounts = list(config.load_accounts(cfg.accounts_file))
-    accounts = args.account or profile_mod.accounts_for(person, all_accounts, profiles)
     bad = profile_mod.lint(person, all_accounts, profiles)
-    if bad:
+    if bad and endpoint_name == "evalsystem":
         print(f"profile {person.id}: " + "; ".join(bad))
         return 2
+    if endpoint_name == "chrome":
+        accounts = [person.email or "my-account"]   # one browser, one person: conversations run one after another
+        args.parallel = 1
+        from behavioreval.browser import cdp
+        if not cdp.up(cfg.chrome_port):
+            print(f"no Chrome answering on 127.0.0.1:{cfg.chrome_port}: start it first with `python3 -m behavioreval chrome` (or the Setup tab)")
+            return 2
+    else:
+        accounts = args.account or profile_mod.accounts_for(person, all_accounts, profiles)
     if endpoint_name == "evalsystem" and not accounts:
         print(f"no accounts for profile {person.id}: bind some in profiles/{person.id}.json, or add unbound ones to {cfg.accounts_file.name}")
         return 2
     led = ledger.load(ledger.path_for(cfg.data_root))
-    jobs = plan_jobs(cfg, scs, columns, args.runs, accounts if endpoint_name == "evalsystem" else [], led, person)
+    jobs = plan_jobs(cfg, scs, columns, args.runs, accounts if endpoint_name in ("evalsystem", "chrome") else [], led, person)
     print(f"behavioreval run as {person.name} ({person.id}): {len(scs)} scenario(s) × {len(columns)} column(s) × {args.runs} = {len(jobs)} conversation(s) on "
           f"{len(set(j[2] for j in jobs))} account(s); columns {', '.join(columns)}; user model {cfg.user_model}; max_turns {cfg.max_turns}; parallel {args.parallel}; "
           f"score {args.score}; endpoint {endpoint_name}")
@@ -344,11 +360,31 @@ def cmd_accounts(args) -> int:
     return 0
 
 
+def cmd_chrome(args) -> int:
+    from behavioreval.browser import chrome
+    cfg = config.load(overrides=_overrides(args))
+    found = chrome.list_profiles(cfg.chrome_dir)
+    if args.list or not (args.profile_directory or _profile(cfg).chrome_profile):
+        print(f"Chrome profiles under {cfg.chrome_dir}:")
+        for p in found:
+            print(f"  {p['dir']:12s} {p['name']:24s} {p['email']}")
+        if not args.list:
+            print("pick the one signed in to dev: python3 -m behavioreval chrome --profile-directory \"<dir>\" (or set chrome_profile in your profile)")
+        return 0
+    chrome.start(cfg.chrome_dir, args.profile_directory or _profile(cfg).chrome_profile, cfg.chrome_profile_dir, cfg.chrome_port)
+    return 0
+
+
 def cmd_check(args) -> int:
-    from behavioreval.endpoints.evalsystem import check
     cfg = config.load()
     bad = 0
-    for what, ok, detail in check(cfg):
+    if cfg.endpoint == "chrome":
+        from behavioreval.endpoints.chrome import check
+    else:
+        from behavioreval.endpoints.evalsystem import check
+    from behavioreval.core.config import secrets
+    print(f"endpoint: {cfg.endpoint}")
+    for what, ok, detail in check(cfg) + [("OpenRouter key", bool(secrets(cfg).get("OPENROUTER_API_KEY")), f"OPENROUTER_API_KEY in {cfg.secrets_file.name}")]:
         print(f"{'OK ' if ok else 'MISSING'}  {what:24s} {detail}")
         bad += not ok
     try:
@@ -476,7 +512,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         return {"ui": cmd_ui, "run": cmd_run, "lint": cmd_lint, "scenarios": cmd_scenarios, "profiles": cmd_profiles, "simulate": cmd_simulate,
-                "accounts": cmd_accounts, "check": cmd_check, "config": cmd_config, "rescore": cmd_rescore, "audit": cmd_audit}[args.cmd](args)
+                "accounts": cmd_accounts, "chrome": cmd_chrome, "check": cmd_check, "config": cmd_config, "rescore": cmd_rescore, "audit": cmd_audit}[args.cmd](args)
     except ValueError as exc:
         print(f"error: {exc}")
         return 2

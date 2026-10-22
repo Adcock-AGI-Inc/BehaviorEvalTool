@@ -59,7 +59,7 @@
   <div class="help" style="margin-bottom:8px">A profile is the simulated person you run as: their facts, how they type, what they never do, and <b>the test accounts that belong to them</b>.
     An account bound to a profile is used by nobody else, so the assistant's memory on it stays that one person's. Pick yours at the top right; make one if you have none.</div>
   <div class="toolbar"><button class="btn primary" onclick="newProfile()">New profile</button><span class="help" id="pf-count"></span></div>
-  <table id="pf-table"><thead><tr><th>id</th><th>name</th><th>home</th><th>accounts</th><th>check</th></tr></thead><tbody></tbody></table>
+  <table id="pf-table"><thead><tr><th>id</th><th>name</th><th>home</th><th>account / Chrome</th><th>check</th></tr></thead><tbody></tbody></table>
   <div id="pf-editor" class="card" style="display:none">
     <div class="toolbar"><strong id="pf-title">Profile</strong></div>
     <div class="grid">
@@ -73,8 +73,10 @@
         <label>things they never do in the chat — one per line</label><textarea id="p-limits"></textarea>
         <label>profile page the assistant should know (written into the account before each conversation) — allowed fields: <span id="p-fields-help"></span></label>
         <textarea id="p-profile" placeholder='{"name": "…", "home": "…", "family": "…", "hobbies": "…"}'></textarea>
-        <label>accounts that belong to this person (greyed = already someone else's)</label>
-        <div id="p-accounts" class="box"></div>
+        <label>my dev account (the email this person is signed in as; recorded on every conversation)</label><input type="text" id="p-email" placeholder="you@hark.com">
+        <label>my Chrome profile signed in to dev (the tool copies it and drives the copy)</label><select id="p-chrome"></select>
+        <div id="p-accounts-wrap"><label>test accounts that belong to this person — only for the eval_system endpoint (greyed = already someone else's)</label>
+        <div id="p-accounts" class="box"></div></div>
       </div>
     </div>
     <div class="toolbar">
@@ -148,8 +150,9 @@
         <div><label>max user turns (blank = config)</label><input type="number" id="run-turns" min="1" max="30"></div>
         <div><label>tag (name of the run)</label><input type="text" id="run-tag"></div>
       </div>
-      <label>3. accounts — this profile's accounts; leave all unticked to use every one of them</label>
-      <div id="run-accounts" class="box" style="max-height:120px"></div>
+      <div id="run-accounts-wrap"><label>3. accounts — this profile's accounts; leave all unticked to use every one of them</label>
+      <div id="run-accounts" class="box" style="max-height:120px"></div></div>
+      <div id="run-chrome-note" class="help" style="margin-top:6px"></div>
       <div class="toolbar" style="margin-top:8px">
         <span class="chk"><input type="checkbox" id="run-judge" checked> judge each conversation</span>
         <span class="chk"><input type="checkbox" id="run-calibrate"> calibrate memory first</span>
@@ -199,7 +202,10 @@
 <section id="setup">
   <div class="card"><strong>Is everything in place?</strong><table id="setup-checks"><tbody></tbody></table>
     <div class="help">Fix anything MISSING, then reload this page. The README has the steps.</div></div>
-  <div class="card"><strong>Accounts (accounts.tsv) and who they belong to</strong><table id="setup-accounts"><tbody></tbody></table></div>
+  <div class="card" id="setup-chrome"><strong>Your Chrome</strong>
+    <div class="help">Runs happen in a second Chrome that the tool starts from a copy of the Chrome profile you use for dev (sign-in included). Your everyday Chrome keeps running. Pick the profile that is signed in to dev and start it; leave that window alone during runs.</div>
+    <div class="toolbar"><select id="setup-chrome-profile" style="max-width:420px"></select><button class="btn primary" onclick="startChrome()">Start the tool's Chrome</button><span id="setup-chrome-msg" class="help"></span></div></div>
+  <div class="card" id="setup-accounts-card"><strong>Accounts (accounts.tsv) and who they belong to — eval_system endpoint only</strong><table id="setup-accounts"><tbody></tbody></table></div>
   <div class="card"><strong>Settings (config.json)</strong><table id="setup-config"><tbody></tbody></table></div>
 </section>
 </main>
@@ -241,7 +247,7 @@ async function boot() {
 async function switchProfile(silent) {
   try { localStorage.setItem("bet.profile", me()); } catch (e) {}
   const p = myProfile();
-  $("who-note").textContent = p.accounts && p.accounts.length ? `${p.accounts.length} account(s)` : `no bound accounts → uses ${(p.usable_accounts || []).length} unbound`;
+  $("who-note").textContent = STATE.endpoint === "chrome" ? (p.email ? `${p.email}${p.chrome_profile ? " · Chrome " + p.chrome_profile : ""}` : "set your dev account in Profiles") : (p.accounts && p.accounts.length ? `${p.accounts.length} account(s)` : `no bound accounts → uses ${(p.usable_accounts || []).length} unbound`);
   await loadScenarios();
   if (!silent && $("run").classList.contains("on")) renderRunForm();
 }
@@ -252,7 +258,7 @@ async function renderProfiles() {
   await loadProfiles();
   $("pf-count").textContent = `${PROFILES.length} profile(s)`;
   $("pf-table").querySelector("tbody").innerHTML = PROFILES.map(p => `<tr class="row" onclick="editProfile('${esc(p.id)}')"><td><code>${esc(p.id)}</code></td><td>${esc(p.name)}</td>
-    <td>${esc(p.facts.home || "")}</td><td>${p.accounts.length ? p.accounts.map(a => `<span class="pill">${esc(a.split("@")[0])}</span>`).join("") : `<span class="help">none bound (${p.usable_accounts.length} unbound available)</span>`}</td>
+    <td>${esc(p.facts.home || "")}</td><td>${STATE.endpoint === "chrome" ? `${esc(p.email || "")} <span class="help">${esc(p.chrome_profile ? "Chrome " + p.chrome_profile : "no Chrome profile set")}</span>` : (p.accounts.length ? p.accounts.map(a => `<span class="pill">${esc(a.split("@")[0])}</span>`).join("") : `<span class="help">none bound (${p.usable_accounts.length} unbound available)</span>`)}</td>
     <td>${p.problems.length ? `<span class="warn" title="${esc(p.problems.join("\n"))}">${p.problems.length} note(s)</span>` : '<span class="good">ok</span>'}</td></tr>`).join("");
 }
 function factsForm(facts) {
@@ -263,16 +269,19 @@ function factsForm(facts) {
 }
 function newProfile() {
   $("pf-title").textContent = "New profile"; $("p-id").value = ""; factsForm({}); $("p-style").value = ""; $("p-limits").value = (PROFILES.find(p => p.id === "default") || {limits: []}).limits.join("\n");
-  $("p-profile").value = ""; renderAccountPicker([], ""); $("pf-msg").textContent = ""; $("pf-editor").style.display = ""; $("pf-editor").scrollIntoView({behavior: "smooth"});
+  $("p-profile").value = ""; renderAccountPicker([], ""); $("p-email").value = ""; $("p-chrome").value = ""; $("pf-msg").textContent = ""; $("pf-editor").style.display = ""; $("pf-editor").scrollIntoView({behavior: "smooth"});
 }
 function editProfile(id) {
   const p = PROFILES.find(x => x.id === id);
   $("pf-title").textContent = id; $("p-id").value = p.id; factsForm(p.facts); $("p-style").value = p.style; $("p-limits").value = p.limits.join("\n");
-  $("p-profile").value = JSON.stringify(p.profile); renderAccountPicker(p.accounts, p.id); $("pf-msg").textContent = p.problems.join("; ");
+  $("p-profile").value = JSON.stringify(p.profile); renderAccountPicker(p.accounts, p.id); $("p-email").value = p.email || ""; $("p-chrome").value = p.chrome_profile || ""; $("pf-msg").textContent = p.problems.join("; ");
   $("pf-editor").style.display = ""; $("pf-editor").scrollIntoView({behavior: "smooth"});
 }
 function renderAccountPicker(mine, pid) {
   $("p-fields-help").textContent = STATE.profile_fields.join(", ");
+  $("p-accounts-wrap").style.display = STATE.endpoint === "chrome" ? "none" : "";
+  const found = ((STATE.chrome || {}).profiles || []);
+  $("p-chrome").innerHTML = '<option value="">(pick the Chrome profile signed in to dev)</option>' + found.map(c => `<option value="${esc(c.dir)}">${esc(c.dir)} — ${esc(c.email || c.name)}</option>`).join("");
   $("p-accounts").innerHTML = (STATE.accounts || []).map(a => { const other = a.profile && a.profile !== pid;
     return `<label class="chk"><input type="checkbox" class="p-acct" value="${esc(a.email)}" ${mine.includes(a.email) ? "checked" : ""} ${other ? "disabled" : ""}> ${esc(a.email)} ${other ? `<span class="help">(${esc(a.profile)})</span>` : ""}</label>`; }).join("") || '<span class="bad">no accounts in accounts.tsv</span>';
 }
@@ -281,7 +290,8 @@ async function saveProfile() {
     const facts = {}; document.querySelectorAll("#p-facts [data-fact]").forEach(el => { if (el.value.trim()) facts[el.dataset.fact] = el.value.trim(); });
     if ($("p-extra").value.trim()) Object.assign(facts, JSON.parse($("p-extra").value));
     const body = {id: $("p-id").value.trim(), facts, style: $("p-style").value.trim(), limits: $("p-limits").value.split("\n").map(x => x.trim()).filter(Boolean),
-                  profile: $("p-profile").value.trim() ? JSON.parse($("p-profile").value) : {}, accounts: [...document.querySelectorAll(".p-acct:checked")].map(c => c.value)};
+                  profile: $("p-profile").value.trim() ? JSON.parse($("p-profile").value) : {}, accounts: [...document.querySelectorAll(".p-acct:checked")].map(c => c.value),
+                  email: $("p-email").value.trim(), chrome_profile: $("p-chrome").value};
     const r = await api("/api/profiles", body);
     $("pf-msg").textContent = r.problems.length ? "saved; notes: " + r.problems.join("; ") : "saved ✓";
     STATE = await api("/api/state"); await renderProfiles();
@@ -365,6 +375,10 @@ function renderRunForm() {
     SCENARIOS.filter(s => s.set === set).map(s => `<label class="chk" style="display:flex"><input type="checkbox" class="run-sc" value="${esc(s.id)}" ${s.problems.length ? "disabled" : ""} onchange="planText()"> <code>${esc(s.id)}</code> <span class="help">${esc((s.opening || "").slice(0, 70))}</span></label>`).join("")).join("");
   const usable = p.usable_accounts || [];
   $("run-accounts").innerHTML = usable.map(a => `<label class="chk"><input type="checkbox" class="run-acct" value="${esc(a)}"> ${esc(a)}</label>`).join("") || '<span class="bad">this profile has no usable accounts — bind some in Profiles, or add unbound ones to accounts.tsv</span>';
+  const onChrome = STATE.endpoint === "chrome";
+  $("run-accounts-wrap").style.display = onChrome ? "none" : "";
+  $("run-parallel").disabled = onChrome; if (onChrome) $("run-parallel").value = 1;
+  $("run-chrome-note").innerHTML = onChrome ? ((STATE.chrome || {}).up ? `Runs in the tool's Chrome as <b>${esc(p.email || "your account")}</b>, one conversation at a time (you can watch the window).` : `<span class="bad">The tool's Chrome is not running — start it in the Setup tab first.</span>`) : "";
   if (!$("run-tag").value) $("run-tag").value = me();
   document.querySelectorAll(".run-col, #run-runs, #run-columns-extra").forEach(el => el.addEventListener("change", planText));
   planText();
@@ -465,6 +479,18 @@ async function renderSetup() {
   $("setup-checks").querySelector("tbody").innerHTML = STATE.checks.map(c => `<tr><td class="${c.ok ? "good" : "bad"}">${c.ok ? "OK" : "MISSING"}</td><td>${esc(c.what)}</td><td class="help">${esc(c.detail)}</td></tr>`).join("");
   $("setup-accounts").querySelector("tbody").innerHTML = (STATE.accounts || []).map(a => `<tr><td>${esc(a.email)}</td><td>${a.profile ? `<span class="pill">${esc(a.profile)}</span>` : '<span class="help">unbound</span>'}</td><td class="help">${a.uses} uses${a.last ? ", last " + esc(a.last.slice(0, 16)) : ""}</td></tr>`).join("") || '<tr><td class="help">no accounts.tsv yet</td></tr>';
   $("setup-config").querySelector("tbody").innerHTML = Object.entries(STATE.config).map(([k, v]) => `<tr><td>${esc(k)}</td><td><code>${esc(v)}</code></td></tr>`).join("");
+  const ch = STATE.chrome || {}; const mine = myProfile();
+  $("setup-chrome").style.display = STATE.endpoint === "chrome" ? "" : "none";
+  $("setup-accounts-card").style.display = STATE.endpoint === "chrome" ? "none" : "";
+  $("setup-chrome-profile").innerHTML = (ch.profiles || []).map(c => `<option value="${esc(c.dir)}" ${c.dir === mine.chrome_profile ? "selected" : ""}>${esc(c.dir)} — ${esc(c.email || c.name)}</option>`).join("") || '<option value="">no Chrome profiles found</option>';
+  $("setup-chrome-msg").textContent = ch.up ? `running (CDP 127.0.0.1:${ch.port})` : "not running";
+}
+async function startChrome() {
+  const dir = $("setup-chrome-profile").value; if (!dir) return;
+  if (!confirm(`Copy Chrome profile "${dir}" (with its sign-ins) into the tool's folder and start a second Chrome from it?`)) return;
+  $("setup-chrome-msg").textContent = "starting…";
+  try { const r = await api("/api/chrome/start", {profile_directory: dir}); $("setup-chrome-msg").textContent = (r.log || []).slice(-1)[0] || "started"; STATE = await api("/api/state"); renderSetup(); }
+  catch (e) { $("setup-chrome-msg").textContent = e.message; }
 }
 boot();
 </script>
