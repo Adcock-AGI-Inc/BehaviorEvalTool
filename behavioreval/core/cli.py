@@ -48,7 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--runs", type=int, default=1, help="conversations per scenario per column")
     r.add_argument("--score", choices=tuple(scoring.NAMES), default="judge")
     r.add_argument("--columns", help="assistant columns, comma-separated: default, slot20, claude-opus-5-5 (default: the config's lane/model)")
-    r.add_argument("--parallel", type=int, default=4, help="conversations side by side (never two on one account)")
+    r.add_argument("--parallel", type=int, default=3, help="conversations side by side (chrome: each in its own tab of your Chrome; evalsystem: never two on one account)")
     r.add_argument("--tag", help="run directory name suffix")
     r.add_argument("--resume", help="an existing run directory: skip what it already holds, add the rest")
     r.add_argument("--calibrate-first", dest="calibrate_first", action="store_true", help="before an account's first scenario, audit and correct the assistant's memory (maint/01; recorded, not scored)")
@@ -180,8 +180,11 @@ def run_jobs(cfg, jobs, args, key, out_dir, person, say=print) -> list:
         jcfg = config.with_column(cfg, col)
         label = config.column(jcfg)[0]
         prefix = f"{label}|{(account or 'noaccount').split('@')[0]}|{sc.id.split('/')[-1][:24]}"
+        # evalsystem: one conversation per test account at a time. chrome: one person's account, but each
+        # conversation has its own tab, so --parallel of them may run side by side.
+        lock_key = f"{account}#{id(job)}" if (args.endpoint or cfg.endpoint) == "chrome" else (account or "-")
         try:
-            with locks.setdefault(account or "-", threading.Lock()):
+            with locks.setdefault(lock_key, threading.Lock()):
                 log(prefix, "start")
                 if args.calibrate_first and account not in calibrated and "maint/01_calibrate_memory" in maint:
                     calibrated.add(account)
@@ -228,8 +231,7 @@ def cmd_run(args) -> int:
         print(f"profile {person.id}: " + "; ".join(bad))
         return 2
     if endpoint_name == "chrome":
-        accounts = [person.email or "my-account"]   # one browser, one person: conversations run one after another
-        args.parallel = 1
+        accounts = [person.email or "my-account"]   # one person, one account; --parallel conversations run in their own tabs
         from behavioreval.browser import cdp
         if not cdp.up(cfg.chrome_port):
             print(f"no Chrome answering on 127.0.0.1:{cfg.chrome_port}: start it first with `python3 -m behavioreval chrome` (or the Setup tab)")

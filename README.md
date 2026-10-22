@@ -52,7 +52,7 @@ python3 -m behavioreval ui             # opens http://127.0.0.1:8930 (local only
 
 ## 3. Make your profile and start your Chrome (once)
 
-**Profiles** tab → **New profile**. Give it your first name as the id, fill in the facts (name, home, car, household, calendar…) —
+**Set up** page → **Who I am** → **+ New**. Give it your first name as the id, fill in the facts (name, home, car, household, calendar…) —
 *the facts the assistant should know about you; keep them consistent with what you have told it before* — how you type, what you
 never do, **your dev account email**, and **the Chrome profile that is signed in to dev** (the list comes from your Chrome; the
 email next to each entry tells you which). Save, then pick yourself in the **"I am"** box at the top right.
@@ -70,8 +70,8 @@ tick *calibrate memory first* on your next run.
 1. **Tests** page: the bank, grouped by category. Each category has two tests from The Hark 100: an **open** one (the tester's prompt as written; the simulated user gives details only when asked) and a **preset** one (the conditions are in the prompt, with ordered steps). Click a card to read it.
 2. **Run** tab: **tick the models** to test (one checkbox per column; `default` is the product's normal model), **tick the scenarios**
    (or *select set* / *all*), choose repeats, click **Start**. The line under the button tells you how many conversations that is.
-   A 3–5 turn conversation takes 3–15 minutes; in your Chrome they run one after another (one window, one account), so a batch of
-   20 is an afternoon — start it and come back.
+   A 3–5 turn conversation takes 3–15 minutes. Several run side by side, each in its own tab of the tool's Chrome ("conversations at a time",
+   3 by default); you can watch them there, and every conversation has an "open on dev" link.
 3. Watch the run's log on the right (click the run). When it is finished, click **results**.
 4. **Results** tab: every conversation with the judge's verdict. Click one to read it turn by turn — the user's messages,
    the assistant's replies, every tool call with its result (expand them), the judge's reasoning — and give **your own verdict**

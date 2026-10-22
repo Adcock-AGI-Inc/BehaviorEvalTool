@@ -35,6 +35,13 @@ def targets(port: int) -> list[dict]:
     return [x for x in t if isinstance(x, dict) and x.get("type") == "page"] if isinstance(t, list) else []
 
 
+def close_target(port: int, target_id: str) -> None:
+    try:
+        _http(port, f"/json/close/{target_id}")
+    except Exception:
+        pass
+
+
 def new_target(port: int, url: str = "about:blank") -> dict:
     t = _http(port, f"/json/new?{url}", method="PUT")
     if not isinstance(t, dict):
@@ -92,7 +99,8 @@ def read_frame(sock: socket.socket) -> tuple[int, bytes]:
 class Tab:
     """One page target over its WebSocket debugger URL."""
 
-    def __init__(self, ws_url: str, timeout_s: float = 120):
+    def __init__(self, ws_url: str, timeout_s: float = 120, target_id: str = ""):
+        self.target_id = target_id
         u = urlparse(ws_url)
         self.sock = socket.create_connection((u.hostname, u.port), timeout=timeout_s)
         key = base64.b64encode(os.urandom(16)).decode()
@@ -150,10 +158,12 @@ class Tab:
             pass
 
 
-def attach(port: int, prefer_url: str = "") -> Tab:
-    """A tab to drive: one already on ``prefer_url`` when given, else a new blank one."""
-    for t in targets(port):
-        if prefer_url and str(t.get("url", "")).startswith(prefer_url) and t.get("webSocketDebuggerUrl"):
-            return Tab(t["webSocketDebuggerUrl"])
+def attach(port: int, prefer_url: str = "", own: bool = True) -> Tab:
+    """A tab to drive. ``own`` (the default) opens a fresh tab, so several conversations can run
+    side by side, each in its own tab; otherwise an existing tab on ``prefer_url`` is reused."""
+    if not own:
+        for t in targets(port):
+            if prefer_url and str(t.get("url", "")).startswith(prefer_url) and t.get("webSocketDebuggerUrl"):
+                return Tab(t["webSocketDebuggerUrl"], target_id=str(t.get("id", "")))
     t = new_target(port)
-    return Tab(t["webSocketDebuggerUrl"])
+    return Tab(t["webSocketDebuggerUrl"], target_id=str(t.get("id", "")))

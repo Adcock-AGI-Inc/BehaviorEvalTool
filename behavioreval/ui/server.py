@@ -223,7 +223,7 @@ class State:
             except ValueError:
                 continue
             judge = ((j.get("score") or {}).get("judge") or [{}])[0]
-            rows.append({"file": f.name, "scenario": j.get("scenario"), "column": j.get("column") or "default", "account": j.get("account"),
+            rows.append({"file": f.name, "scenario": j.get("scenario"), "column": j.get("column") or "default", "account": j.get("account"), "conversation_id": j.get("conversation_id") or "",
                          "profile": j.get("profile") or j.get("persona") or "", "user_turns": sum(1 for t in j.get("turns") or [] if t.get("user")), "stop": j.get("stop"),
                          "verdict": (j.get("score") or {}).get("verdict") or "-", "score": judge.get("score"), "steps": judge.get("steps_completed"),
                          "fabrication": judge.get("fabrication"), "violations": len(judge.get("violations") or []),
@@ -299,6 +299,7 @@ class State:
                 "accounts": [{"email": a, "uses": len(led.get(a, [])), "last": (led.get(a) or [{}])[-1].get("time", ""), "profile": bound.get(a, "")} for a in self.all_accounts()],
                 "profiles": [{"id": p.id, "name": p.name, "accounts": p.accounts, "email": p.email, "chrome_profile": p.chrome_profile} for p in profiles.values()],
                 "default_profile": self.cfg.profile, "columns": self.cfg.columns, "suggested_facts": list(profile_mod.SUGGESTED_FACTS), "profile_fields": list(profile_mod.PROFILE_FIELDS),
+                "web_url": __import__("behavioreval.endpoints.chrome", fromlist=["web_url"]).web_url(self.cfg),
                 "sets": scenario.sets(self.cfg.scenarios_dir), "issues": ISSUES, "default_column": config_mod.column(self.cfg)[0], "root": str(ROOT)}
 
 

@@ -13,7 +13,7 @@
   body { margin:0; font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--fg); display:flex; }
   nav { width: 200px; flex: 0 0 200px; background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; padding:14px 10px; gap:4px; position:sticky; top:0; height:100vh; }
   nav .brand { font-weight:700; font-size:15px; padding:6px 10px 14px; }
-  nav button { text-align:left; background:none; border:none; color:var(--fg); font:inherit; padding:9px 12px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:10px; }
+  nav button { text-align:left; background:none; border:none; color:var(--fg); font:inherit; font-size:15px; padding:11px 12px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:10px; }
   nav button .n { width:20px; height:20px; border-radius:50%; background:var(--line); color:var(--muted); font-size:12px; display:inline-flex; align-items:center; justify-content:center; font-weight:600; }
   nav button.on { background:var(--accent-soft); color:var(--accent); font-weight:600; } nav button.on .n { background:var(--accent); color:#fff; }
   nav .spacer { flex:1; }
@@ -74,11 +74,11 @@
 <nav>
   <div class="brand">Behavior Eval Tool</div>
   <button data-page="home" class="on">Home</button>
+  <button data-page="settings"><span class="n">0</span> Set up</button>
   <button data-page="tests"><span class="n">1</span> Tests</button>
   <button data-page="run"><span class="n">2</span> Run</button>
   <button data-page="results"><span class="n">3</span> Results</button>
   <div class="spacer"></div>
-  <button data-page="settings">Settings</button>
   <div class="me">I am<select id="me" onchange="switchProfile()"></select><div id="me-note"></div></div>
 </nav>
 <main>
@@ -123,7 +123,8 @@
       <div id="run-summary" class="muted"></div>
       <label>models to test</label><div class="chips" id="run-cols"></div>
       <input type="text" id="run-cols-extra" placeholder="other model ids, comma separated (optional)" style="margin-top:6px">
-      <div class="grid2" style="margin-top:4px"><div><label>repeats per test</label><input type="number" id="run-runs" value="1" min="1" max="10"></div><div><label>name this run</label><input type="text" id="run-tag"></div></div>
+      <div class="grid2" style="margin-top:4px"><div><label>repeats per test</label><input type="number" id="run-runs" value="1" min="1" max="10"></div><div><label>name this run</label><input type="text" id="run-tag"></div>
+        <div><label>conversations at a time</label><input type="number" id="run-parallel" value="3" min="1" max="8"><div class="muted small" id="run-parallel-note"></div></div></div>
       <details style="margin-top:8px"><summary>more options</summary>
         <div class="row" style="margin-top:8px"><span class="chk"><input type="checkbox" id="run-judge" checked> judge each conversation</span><span class="chk"><input type="checkbox" id="run-calibrate"> calibrate memory first</span><span class="chk"><input type="checkbox" id="run-cleanup"> clean up after</span></div>
         <label>max user turns (blank = each test's own)</label><input type="number" id="run-turns" min="1" max="30" style="max-width:160px">
@@ -131,11 +132,14 @@
       <div class="row" style="margin-top:14px"><button class="btn primary" id="run-start" onclick="startRun()">Start batch</button><button class="btn" id="run-chrome-btn" onclick="startChrome()" hidden>Start my Chrome first</button><span id="run-msg" class="muted small"></span></div>
     </div>
     <div class="card">
-      <h2 style="margin-top:0">Watch one live</h2>
-      <p class="muted small">One test, one turn at a time. After each reply the simulated user proposes its next line; you send it, change it, or let it run.</p>
-      <label>test</label><select id="chat-scenario"></select>
-      <label>model</label><select id="chat-column"></select>
-      <div class="row" style="margin-top:12px"><button class="btn primary" id="chat-start" onclick="chatStart()">Start live</button><span class="chk"><input type="checkbox" id="chat-auto"> hands-off from the start</span><span id="chat-msg" class="muted small"></span></div>
+      <h2 style="margin-top:0">While it runs</h2>
+      <p class="muted small">Every conversation opens in its own tab of the tool's Chrome, so you can watch them there. Each run below has a link to open its conversation on dev. When a batch finishes, the judge's verdicts show up in Results.</p>
+      <details><summary>Steer one conversation by hand (optional)</summary>
+        <p class="muted small" style="margin-top:8px">One test, one turn at a time: after each reply the simulated user proposes its next line and you send it, change it, or let it run.</p>
+        <label>test</label><select id="chat-scenario"></select>
+        <label>model</label><select id="chat-column"></select>
+        <div class="row" style="margin-top:12px"><button class="btn primary" id="chat-start" onclick="chatStart()">Start</button><span class="chk"><input type="checkbox" id="chat-auto"> hands-off from the start</span><span id="chat-msg" class="muted small"></span></div>
+      </details>
     </div>
   </div>
 
@@ -159,11 +163,11 @@
   <div class="row" style="justify-content:space-between"><div><h1>Results</h1><p class="sub" id="res-summary"></p></div>
     <div class="row"><select id="res-run" onchange="loadRun()" style="width:auto"></select><select id="res-filter" onchange="renderRun()" style="width:auto"><option value="">all</option><option value="PASS">judge PASS</option><option value="FAIL">judge FAIL</option><option value="error">errors</option><option value="unreviewed">not yet reviewed</option></select><a id="res-export" class="btn" href="#" download>Export CSV</a></div></div>
   <div class="card"><div class="row" style="justify-content:space-between; margin-bottom:8px"><span id="res-progress-text" class="muted small"></span><button class="btn small" onclick="nextUnreviewed()">Next not reviewed →</button></div><div class="progress"><i id="res-progress" style="width:0"></i></div>
-  <table id="res-table"><thead><tr><th>test</th><th>model</th><th>turns</th><th>stop</th><th>judge</th><th>score</th><th>flags</th><th>you</th></tr></thead><tbody></tbody></table></div>
+  <table id="res-table"><thead><tr><th>test</th><th>model</th><th>turns</th><th>stop</th><th>judge</th><th>score</th><th>flags</th><th>you</th><th></th></tr></thead><tbody></tbody></table></div>
 </section>
 
 <section id="page-settings" hidden>
-  <h1>Settings</h1>
+  <h1>Set up</h1><p class="sub">Once per machine: your key, the viewer login, who you are, your Chrome. Then share tests with the team from here.</p>
   <div class="grid2">
     <div class="card"><h2 style="margin-top:0">Is everything ready?</h2><div id="set-checks"></div></div>
     <div class="card"><h2 style="margin-top:0">My Chrome</h2><p class="muted small">Runs happen in a second Chrome started from a copy of the profile you use for dev (sign-in included). Your everyday Chrome keeps running. Pick the profile signed in to dev, start it, and leave that window alone during runs.</p>
@@ -288,7 +292,7 @@ async function renderHome() {
   const mismatch = prof && prof.email && p.email && prof.email.toLowerCase() !== p.email.toLowerCase();
   const rows = [
     {ok: !!(checks["OpenRouter key"] || {}).ok, title: "OpenRouter key", what: (checks["OpenRouter key"] || {}).ok ? "found in .env" : "paste OPENROUTER_API_KEY=… into the .env file in the tool folder, then reload this page", action: ""},
-    {ok: !!(checks["viewer login"] || {}).ok, title: "Signed in to the trajectory viewer", what: (checks["viewer login"] || {}).ok ? "ok" : "in a terminal: cloudflared access login https://trajectory.tools.hark.com (same Google account as dev), then reload", action: ""},
+    {ok: !!(checks["viewer login"] || {}).ok, title: "Signed in to the trajectory viewer", what: (checks["viewer login"] || {}).ok ? "ok (this is how the tool knows when a run ended and which tools it used)" : "once, in a terminal (it opens a browser; use the same Google account as dev):", action: (checks["viewer login"] || {}).ok ? "" : `<code id="cf-cmd">cloudflared access login https://trajectory.tools.hark.com</code> <button class="btn small" onclick="copyText('cf-cmd', this)">copy</button>`},
     {ok: !!(p.email && p.chrome_profile && !mismatch), title: "Who you are", what: !p.email || !p.chrome_profile ? "tell the tool your dev account email and which Chrome profile is signed in to dev" : mismatch ? `your profile says ${p.email} but that Chrome profile is signed in as ${prof.email}` : `${p.name} · ${p.email} · Chrome profile ${p.chrome_profile}`, action: `<button class="btn primary small" onclick="go('settings')">Set up my profile</button>`},
     {ok: !!ch.up, title: "Your Chrome is running", what: ch.up ? `the tool's Chrome is up on port ${ch.port}` : "the tool opens a second Chrome from a copy of your dev profile; leave that window alone during runs", action: `<button class="btn primary small" id="home-chrome-btn" onclick="startChrome()" ${p.chrome_profile ? "" : "disabled title='set your Chrome profile first'"}>Start my Chrome</button>`},
   ];
@@ -300,6 +304,8 @@ async function renderHome() {
   RUNS = await api("/api/runs");
   $("home-runs").innerHTML = RUNS.slice(0, 5).map(r => `<div class="row" style="justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line)"><span>${esc(r.name)} ${r.status === "running" ? '<span class="pill running">running</span>' : ""}</span><span class="muted small">${r.conversations} conversations · ${Object.entries(r.verdicts).map(([k, v]) => k + " " + v).join(", ") || "—"} · ${r.annotated} reviewed</span>${r.conversations ? `<button class="btn small" onclick="openResults('${esc(r.name)}')">open</button>` : ""}</div>`).join("") || "no runs yet";
 }
+
+function copyText(id, btn) { const t = $(id).textContent; const done = () => { btn.textContent = "copied"; setTimeout(() => btn.textContent = "copy", 1500); }; try { navigator.clipboard.writeText(t).then(done, () => { window.getSelection().selectAllChildren($(id)); }); } catch (e) { window.getSelection().selectAllChildren($(id)); } }
 
 // ── tests ─────────────────────────────────────────────────────────────────
 async function loadTests() { TESTS = await api("/api/scenarios?profile=" + encodeURIComponent(me())); }
@@ -405,7 +411,8 @@ async function previewTest() { try { const r = await api("/api/preview", {scenar
 // ── run ───────────────────────────────────────────────────────────────────
 function renderRunForm() {
   const p = myProfile();
-  $("run-as").textContent = onChrome() ? ((STATE.chrome || {}).up ? `Runs in your Chrome as ${p.email || "your account"}, one conversation at a time. You can watch the window.` : "Your Chrome is not running yet — start it in Settings (or on Home).") : `Runs on this profile's test accounts.`;
+  $("run-as").textContent = onChrome() ? ((STATE.chrome || {}).up ? `Runs in your Chrome as ${p.email || "your account"}; each conversation gets its own tab.` : "Your Chrome is not running yet — start it on Home (or in Set up).") : `Runs on this profile's test accounts.`;
+  $("run-parallel-note").textContent = onChrome() ? "tabs open side by side in your Chrome; 3 is a good default, 1 = one after another" : "never two on one account";
   paintNotice("run-account");
   const sel = [...SEL].filter(id => TESTS.some(t => t.id === id));
   $("run-summary").innerHTML = sel.length ? `<b>${sel.length} test(s)</b>: ${sel.map(id => `<code>${esc(id)}</code>`).join(", ")} <a href="#" onclick="go('tests');return false">change</a>` : 'No tests selected yet. <a href="#" onclick="go(\'tests\');return false">Pick some</a>.';
@@ -421,7 +428,7 @@ function renderRunForm() {
 }
 function chosenColumns() { return [...COLS].concat($("run-cols-extra").value.split(",").map(x => x.trim()).filter(Boolean)); }
 async function startRun() {
-  const req = {profile: me(), scenarios: [...SEL], columns: chosenColumns(), runs: +$("run-runs").value || 1, parallel: 1, max_turns: +$("run-turns").value || null, tag: $("run-tag").value,
+  const req = {profile: me(), scenarios: [...SEL], columns: chosenColumns(), runs: +$("run-runs").value || 1, parallel: +$("run-parallel").value || 3, max_turns: +$("run-turns").value || null, tag: $("run-tag").value,
                score: $("run-judge").checked ? "judge" : "none", calibrate_first: $("run-calibrate").checked, cleanup: $("run-cleanup").checked};
   if (!req.columns.length) { $("run-msg").textContent = "pick at least one model"; return; }
   $("run-msg").textContent = "starting…";
@@ -461,7 +468,7 @@ function renderChat() {
   const c = CHAT || {state: "idle"};
   $("chat-box").hidden = c.state === "idle" || !c.state;
   $("chat-state").textContent = c.state + (c.auto ? " · hands-off" : ""); $("chat-state").className = "pill " + (c.state === "finished" ? "PASS" : c.state === "error" ? "FAIL" : "running");
-  $("chat-meta").textContent = c.scenario ? `${c.scenario} · ${c.column} · ${(c.turns || []).filter(t => t.user).length}/${c.max_turns} turns` : "";
+  $("chat-meta").innerHTML = c.scenario ? `${esc(c.scenario)} · ${esc(c.column)} · ${(c.turns || []).filter(t => t.user).length}/${c.max_turns} turns` + (c.conversation_id ? ` · <a href="${esc(STATE.web_url || "https://dev.hark.com")}/project/${esc(c.conversation_id)}" target="_blank" rel="noopener">open on dev ↗</a>` : "") : "";
   $("chat-start").disabled = !["idle", "finished", "error", undefined].includes(c.state);
   $("chat-turns").innerHTML = (c.turns || []).map(t => {
     if (!t.user) return `<div class="muted small">the simulated user decided to stop: ${esc((t.sim || {}).why)}</div>`;
@@ -494,14 +501,14 @@ function renderRun() {
   $("res-progress-text").textContent = `${reviewed} of ${ROWS.length} reviewed by a person`; $("res-progress").style.width = ROWS.length ? (100 * reviewed / ROWS.length) + "%" : "0";
   $("res-table").querySelector("tbody").innerHTML = rows.map(r => `<tr class="r" onclick="openConversation('${esc(r.file)}')"><td>${esc(r.scenario)}</td><td>${esc(r.column)}</td><td>${r.user_turns}</td>
     <td class="${r.stop === "assistant_error" || String(r.stop).startsWith("error") ? "bad" : ""}">${esc(r.stop)}</td><td><span class="pill ${esc(r.verdict)}">${esc(r.verdict)}</span></td><td>${r.score ?? ""}</td>
-    <td class="muted small">${r.fabrication ? "fabrication " : ""}${r.violations ? "acted without asking " : ""}</td><td>${r.annotation.verdict ? `<span class="pill ${esc(r.annotation.verdict)}">${esc(r.annotation.verdict)}</span>` : '<span class="muted small">—</span>'}</td></tr>`).join("") || '<tr><td colspan="8" class="muted">nothing here</td></tr>';
+    <td class="muted small">${r.fabrication ? "fabrication " : ""}${r.violations ? "acted without asking " : ""}</td><td>${r.annotation.verdict ? `<span class="pill ${esc(r.annotation.verdict)}">${esc(r.annotation.verdict)}</span>` : '<span class="muted small">—</span>'}</td><td>${r.conversation_id ? `<a class="small" href="${esc(STATE.web_url || "https://dev.hark.com")}/project/${esc(r.conversation_id)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">dev ↗</a>` : ""}</td></tr>`).join("") || '<tr><td colspan="9" class="muted">nothing here</td></tr>';
 }
 function nextUnreviewed() { const r = ROWS.find(x => !x.annotation.verdict); if (r) openConversation(r.file); }
 async function openConversation(file) {
   const run = $("res-run").value;
   CUR = {run, file, data: await api(`/api/conversation?run=${encodeURIComponent(run)}&file=${encodeURIComponent(file)}`)};
   const d = CUR.data; const j = ((d.score || {}).judge || [])[0] || {}; const a = d.annotation || {};
-  $("d-title").textContent = `${d.scenario} · ${d.column || "default"}`; $("d-view").hidden = true; $("d-edit").hidden = true; $("d-edit-btn").hidden = true; $("d-conv").hidden = false;
+  $("d-title").innerHTML = `${esc(d.scenario)} · ${esc(d.column || "default")}` + (d.conversation_id ? ` <a class="btn small" href="${esc(STATE.web_url || "https://dev.hark.com")}/project/${esc(d.conversation_id)}" target="_blank" rel="noopener">Open on dev ↗</a>` : ""); $("d-view").hidden = true; $("d-edit").hidden = true; $("d-edit-btn").hidden = true; $("d-conv").hidden = false;
   const t0 = TESTS.find(s => s.id === d.scenario) || {};
   const by = store.get("by", "");
   $("d-conv").innerHTML = `<div class="card" style="margin-top:0"><div class="row"><span class="pill ${esc((d.score || {}).verdict || "-")}">judge: ${esc((d.score || {}).verdict || "-")}</span><span class="muted small">score ${j.score ?? "?"} · steps ${j.steps_completed ?? "?"} · asked first: ${j.asked_before_acting ?? "?"} · fabrication: ${j.fabrication ?? "?"}</span></div>

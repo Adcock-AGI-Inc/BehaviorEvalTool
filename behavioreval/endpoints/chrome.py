@@ -85,7 +85,6 @@ class ChromeEndpoint:
             if not cdp.up(self.port):
                 raise RuntimeError(f"no Chrome answering CDP on 127.0.0.1:{self.port}: start it with `python3 -m behavioreval chrome` (or the Setup tab)")
             self.tab = cdp.attach(self.port, self.web)
-            self.tab.front()
         if self.hdrs is None:
             self.hdrs = viewer.headers(self.cfg.viewer_url)
         self._signed_in()
@@ -134,7 +133,10 @@ class ChromeEndpoint:
 
     def close(self) -> None:
         if self.tab:
+            tid = getattr(self.tab, "target_id", "")
             self.tab.close()
+            if tid:
+                cdp.close_target(self.port, tid)   # the tab was ours; the window stays
 
 
 def check(cfg: Config) -> list[tuple[str, bool, str]]:
