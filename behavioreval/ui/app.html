@@ -96,8 +96,15 @@
 
 <section id="page-tests" hidden>
   <div class="row" style="justify-content:space-between"><div><h1>Tests</h1><p class="sub">Tick what to run. Click a card to read or edit it. <span id="tests-lint" class="small"></span></p></div>
-    <div class="row"><input type="text" id="tests-search" placeholder="search…" oninput="renderTests()" style="width:220px"><button class="btn primary" onclick="newTest()">+ Add a test</button></div></div>
-  <div class="legend"><span><span class="pill open">just the prompt</span> <b>the tester's first message as written</b>; the simulated user answers the assistant's questions as they come</span><span><span class="pill preset">details in the prompt</span> <b>the conditions are already in the first message</b>, and the user works through steps in order</span></div>
+    <div class="row"><input type="text" id="tests-search" placeholder="search…" oninput="renderTests()" style="width:220px"></div></div>
+  <div class="card" style="margin:0 0 14px"><div class="legend" style="margin:0">
+    <span><span class="pill open">short ask</span> <b>one line, the assistant has to ask for the rest.</b> e.g. "Find me a mechanic shop that can do a side mirror replacement on my car" — the simulated user then answers where it lives, the budget, the car, one at a time.</span>
+    <span><span class="pill preset">detailed ask</span> <b>everything stated up front, then several steps.</b> e.g. "Find me someone near home who can clean my windows. I live on the 16th floor…" — the simulated user checks the assistant gets each step right in order.</span></div></div>
+  <div class="card" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; border-style:dashed">
+    <div style="flex:1; min-width:240px"><strong>Add your own test</strong><div class="muted small">Pick a category (or make a new one), write the first message the way a real person would, and list the details they would give only when asked.</div></div>
+    <select id="tests-newcat" style="width:auto; min-width:220px"></select>
+    <button class="btn primary" onclick="newTest($('tests-newcat').value)">+ Add a test</button>
+  </div>
   <div id="tests-list"></div>
 </section>
 
@@ -190,7 +197,7 @@
   <div id="d-view" style="margin-top:12px"></div>
   <div id="d-edit" hidden style="margin-top:12px">
     <div class="grid2">
-      <div><label>category (set file)</label><input type="text" id="f-set"><label>id (category/number_name)</label><input type="text" id="f-id">
+      <div><label>category</label><select id="f-set-pick" onchange="pickSet()"></select><input type="text" id="f-set" placeholder="new category name, e.g. anderson_shopping" hidden><label>id (category/number_name)</label><input type="text" id="f-id">
         <label>first message — sent to the assistant exactly as written</label><textarea id="f-opening"></textarea>
         <label>what is going on (the simulated user reads this, the assistant never does)</label><textarea id="f-situation"></textarea>
         <label>what they want</label><textarea id="f-goal"></textarea>
@@ -198,7 +205,7 @@
       <div><label>details they give only when asked — one per line (answers to every question the assistant will ask)</label><textarea id="f-hidden" style="min-height:100px"></textarea>
         <label>steps, in order (optional, one per line)</label><textarea id="f-beats"></textarea>
         <label>max user turns</label><input type="number" id="f-max_turns" min="1" max="30">
-        <label>tags (comma separated) — include <b>open</b> for "just the prompt" or <b>preset</b> for "details in the prompt"</label><input type="text" id="f-tags">
+        <label>tags (comma separated) — include <b>open</b> for a short ask or <b>preset</b> for a detailed ask</label><input type="text" id="f-tags">
         <label>what it leaves on the account (for cleanup); "nothing" if nothing</label><input type="text" id="f-leaves">
         <label>facts that differ from my profile for this test (JSON, optional)</label><textarea id="f-user"></textarea>
         <label>extra judge criteria (optional, one per line)</label><textarea id="f-criteria"></textarea></div>
@@ -283,13 +290,16 @@ async function renderHome() {
 // ── tests ─────────────────────────────────────────────────────────────────
 async function loadTests() { TESTS = await api("/api/scenarios?profile=" + encodeURIComponent(me())); }
 function kind(t) { return (t.tags || []).includes("preset") ? "preset" : (t.tags || []).includes("open") ? "open" : ""; }
-const KIND_LABEL = {open: "just the prompt", preset: "details in the prompt"};
+const KIND_LABEL = {open: "short ask", preset: "detailed ask"};
 function kindPill(t) { const k = kind(t); return k ? `<span class="pill ${k}">${KIND_LABEL[k]}</span>` : ""; }
 function renderTests() {
   const q = $("tests-search").value.toLowerCase();
   const sets = [...new Set(TESTS.map(t => t.set))].filter(s => s !== "maint");
   const problems = TESTS.filter(t => t.problems.length).length;
   $("tests-lint").textContent = problems ? `${problems} test(s) need attention (greyed out)` : "";
+  const catOpts = sets.map(set => `<option value="${esc(set)}">${esc((TESTS.find(t => t.set === set) || {}).set_label || set)}</option>`).join("");
+  const mine = (me() || "my").replace(/[^a-z0-9_-]/g, "") + "_tests";
+  $("tests-newcat").innerHTML = catOpts + (sets.includes(mine) ? "" : `<option value="${esc(mine)}">my own set (${esc(mine)})</option>`) + '<option value="__new__">new category…</option>';
   $("tests-list").innerHTML = sets.map(set => {
     const items = TESTS.filter(t => t.set === set && (!q || JSON.stringify(t).toLowerCase().includes(q)));
     if (!items.length) return "";
@@ -330,8 +340,21 @@ function openTest(id) {
 function openDrawer() { $("drawer").classList.add("on"); $("scrim").classList.add("on"); }
 function closeDrawer() { $("drawer").classList.remove("on"); $("scrim").classList.remove("on"); }
 function toggleEdit() { const e = $("d-edit").hidden; $("d-edit").hidden = !e; $("d-view").hidden = e; $("d-edit-btn").textContent = e ? "View" : "Edit"; }
+function setPicker(set) {
+  const sets = [...new Set(TESTS.map(t => t.set))];
+  const mine = (me() || "my").replace(/[^a-z0-9_-]/g, "") + "_tests";
+  if (set && !sets.includes(set)) sets.push(set);
+  if (!sets.includes(mine)) sets.push(mine);
+  $("f-set-pick").innerHTML = sets.map(x => `<option value="${esc(x)}">${esc((TESTS.find(t => t.set === x) || {}).set_label || x)}</option>`).join("") + '<option value="__new__">new category…</option>';
+  $("f-set-pick").value = set || mine; $("f-set").hidden = true; $("f-set").value = set || mine;
+}
+function pickSet() {
+  const v = $("f-set-pick").value;
+  if (v === "__new__") { $("f-set").hidden = false; $("f-set").value = ""; $("f-set").focus(); }
+  else { $("f-set").hidden = true; $("f-set").value = v; const n = TESTS.filter(t => t.set === v).length + 1; if (!CUR || !CUR.test) $("f-id").value = `${v}/${String(n).padStart(2, "0")}_`; }
+}
 function fillForm(s) {
-  $("f-set").value = s.set || ""; $("f-id").value = s.id || ""; $("f-opening").value = s.opening || ""; $("f-situation").value = s.situation || ""; $("f-goal").value = s.goal || "";
+  setPicker(s.set || ""); $("f-id").value = s.id || ""; $("f-opening").value = s.opening || ""; $("f-situation").value = s.situation || ""; $("f-goal").value = s.goal || "";
   $("f-done_when").value = s.done_when || ""; $("f-hidden").value = (s.hidden || []).join("\n"); $("f-beats").value = (s.beats || []).join("\n"); $("f-max_turns").value = s.max_turns || "";
   $("f-tags").value = (s.tags || []).join(", "); $("f-leaves").value = s.leaves || ""; $("f-user").value = s.user && Object.keys(s.user).length ? JSON.stringify(s.user) : ""; $("f-criteria").value = ((s.scoring || {}).criteria || []).join("\n");
   $("f-msg").textContent = ""; $("f-preview").hidden = true;
@@ -347,13 +370,19 @@ function readForm() {
 }
 function newTest(set) {
   const mine = (me() || "my").replace(/[^a-z0-9_-]/g, "");
+  if (set === "__new__") set = "";
   set = set || mine + "_tests";
   const n = TESTS.filter(t => t.set === set).length + 1;
   CUR = {test: null}; $("d-title").textContent = "New test"; $("d-conv").hidden = true; $("d-view").hidden = true; $("d-edit").hidden = false; $("d-edit-btn").hidden = true;
   fillForm({set, id: `${set}/${String(n).padStart(2, "0")}_`, tags: ["open"], max_turns: 4, leaves: "nothing"}); openDrawer(); $("f-opening").focus();
+  if (!TESTS.some(t => t.set === set) && set !== mine + "_tests") { $("f-set-pick").value = "__new__"; pickSet(); $("f-set").value = set; }
 }
 async function saveTest() {
-  try { const r = await api("/api/scenarios", {set: $("f-set").value.trim(), scenario: readForm(), profile: me()}); $("f-msg").textContent = r.problems.length ? "saved, but: " + r.problems.join("; ") : "saved ✓"; await loadTests(); renderTests(); }
+  const set = $("f-set").value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_");
+  if (!set) { $("f-msg").textContent = "pick or name a category"; return; }
+  $("f-set").value = set;
+  if (!$("f-id").value.trim().startsWith(set + "/")) $("f-id").value = set + "/" + $("f-id").value.trim().split("/").pop();
+  try { const r = await api("/api/scenarios", {set, scenario: readForm(), profile: me()}); $("f-msg").textContent = r.problems.length ? "saved, but: " + r.problems.join("; ") : "saved ✓"; await loadTests(); renderTests(); }
   catch (e) { $("f-msg").textContent = "not saved: " + e.message; }
 }
 async function deleteTest() { const id = $("f-id").value.trim(); if (!id) return; $("f-msg").textContent = "deleting…"; try { await api("/api/scenarios/delete", {set: $("f-set").value.trim(), id}); SEL.delete(id); closeDrawer(); await loadTests(); renderTests(); } catch (e) { $("f-msg").textContent = e.message; } }

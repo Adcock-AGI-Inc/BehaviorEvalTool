@@ -2,7 +2,7 @@
   "id": "default",
   "facts": {
     "name": "Alex Morgan",
-    "age": 34,
+    "age": "34",
     "job": "project coordinator at a mid-size logistics company",
     "home": "Sunnyvale, CA",
     "car": "2019 Honda Civic",
@@ -28,5 +28,7 @@
     "family": "partner Sam; cat Miso",
     "hobbies": "running, board games, farmers market on Saturdays"
   },
-  "accounts": []
+  "accounts": [],
+  "email": "",
+  "chrome_profile": ""
 }
