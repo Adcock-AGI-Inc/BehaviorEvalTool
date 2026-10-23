@@ -285,6 +285,28 @@ class State:
         chrome.start(self.cfg.chrome_dir, profile_directory, self.cfg.chrome_profile_dir, self.cfg.chrome_port, lines.append)
         return {"ok": True, "log": lines}
 
+    def report(self, tag: str) -> dict:
+        """What a problem report should carry, ready to paste into a GitHub issue: version, checks, the run's log tail."""
+        import subprocess
+        from behavioreval.core.config import ROOT
+        try:
+            version = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip() or "?"
+        except Exception:
+            version = "?"
+        st = self.state()
+        checks = "\n".join(f"- {c['what']}: {'ok' if c['ok'] else 'MISSING — ' + c['detail']}" for c in st["checks"])
+        log = ""
+        if tag:
+            f = self.logs_dir() / f"{tag}.log"
+            if f.exists():
+                lines = f.read_text(encoding="utf-8", errors="replace").splitlines()
+                log = "\n".join(lines[-40:])
+        p = next((x for x in st["profiles"] if x["id"] == self.cfg.profile), {})
+        body = (f"**Tool version** {version} · endpoint {self.cfg.endpoint} · env {self.cfg.env}\n\n**Checks**\n{checks}\n\n"
+                f"**Account** profile `{self.cfg.profile}` · dev email `{p.get('email') or '(not set)'}` · Chrome profile `{p.get('chrome_profile') or '(not set)'}`\n\n"
+                f"**What I did**\n(fill in)\n\n**What happened**\n(fill in)\n\n**Run log** ({tag or 'no run'})\n```\n{log[:5000]}\n```\n")
+        return {"title": f"[problem] {tag or 'setup'}", "body": body, "url": "https://github.com/Adcock-AGI-Inc/BehaviorEvalTool/issues/new"}
+
     def state(self) -> dict:
         from behavioreval.browser import cdp, chrome
         from behavioreval.core.config import secrets
@@ -347,6 +369,8 @@ def make_handler(state: State):
                     return self._send(200, state.conversation(self._safe(q.get("run", "")), self._safe(q.get("file", ""))))
                 if path == "/api/live":
                     return self._send(200, state.live_state())
+                if path == "/api/report":
+                    return self._send(200, state.report(q.get("tag", "")))
                 if path == "/api/log":
                     log = state.logs_dir() / f"{self._safe(q.get('tag', ''))}.log"
                     text = log.read_text(encoding="utf-8", errors="replace")[-int(q.get("chars", 20000)):] if log.exists() else "(no log yet)"

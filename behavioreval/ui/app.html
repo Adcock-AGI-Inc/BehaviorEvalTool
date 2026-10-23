@@ -93,7 +93,7 @@
   <p class="sub">A simulated user runs your tests against the assistant on dev, in your own Chrome, as you. A judge grades each conversation; you add your own verdict.</p>
   <div class="card" id="home-setup" style="margin:0 0 16px"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Get ready</h2><span id="home-ready" class="muted"></span></div>
     <div id="home-steps"></div>
-    <div class="row" style="margin-top:12px"><button class="btn primary" id="home-go" onclick="go('tests')" disabled>All set → pick tests</button><span class="muted small" id="home-go-note"></span></div></div>
+    <div class="row" style="margin-top:12px"><button class="btn primary" id="home-go" onclick="go('tests')" disabled>All set → pick tests</button><span class="muted small" id="home-go-note"></span><span style="flex:1"></span><button class="btn small" onclick="reportProblem('')">Stuck? Report a problem</button></div></div>
   <div id="home-account" class="card" style="margin:0 0 14px"></div>
   <div class="steps">
     <div class="step"><div class="k">Step 1</div><h3>Pick tests</h3><p class="muted">Tick the cards you want, or add your own: title, first message, task description, done-when, judge.</p><button class="btn" onclick="go('tests')">Go to tests</button></div>
@@ -144,7 +144,7 @@
   </div>
 
   <h2>Runs</h2>
-  <p class="muted small">Click a run's <b>results</b> button to review it; click the row for its log.</p>
+  <p class="muted small">Click a run's <b>results</b> button to review it; click the row for its log. <b>Report a problem</b> opens a GitHub issue with the log and your checks already filled in.</p>
   <div class="card"><table id="runs-table"><thead><tr><th>run</th><th>status</th><th>conversations</th><th>judge</th><th>reviewed</th><th></th></tr></thead><tbody></tbody></table><pre id="run-log" hidden></pre></div>
 </section>
 
@@ -401,7 +401,7 @@ async function loadRuns() {
   $("runs-table").querySelector("tbody").innerHTML = RUNS.map(r => `<tr class="r" onclick="showLog('${esc(r.tag)}')"><td>${esc(r.name)}<div class="muted small">${esc(r.modified)} · ${esc((r.profiles || []).slice(0, 2).join(", "))}</div></td>
     <td>${r.status === "running" ? '<span class="pill running">running</span>' : esc(r.status)}</td><td>${r.conversations}</td>
     <td>${Object.entries(r.verdicts).map(([k, v]) => `<span class="pill ${esc(k)}">${esc(k)} ${v}</span>`).join(" ")}</td><td>${r.annotated}</td>
-    <td>${r.status === "running" ? `<button class="btn small danger" onclick="event.stopPropagation();stopRun('${esc(r.tag)}')">stop</button>` : ""} ${r.conversations ? `<button class="btn small" onclick="event.stopPropagation();openResults('${esc(r.name)}')">results</button>` : ""}</td></tr>`).join("") || '<tr><td colspan="6" class="muted">no runs yet</td></tr>';
+    <td>${r.status === "running" ? `<button class="btn small danger" onclick="event.stopPropagation();stopRun('${esc(r.tag)}')">stop</button>` : ""} ${r.conversations ? `<button class="btn small" onclick="event.stopPropagation();openResults('${esc(r.name)}')">results</button>` : ""} <button class="btn small" onclick="event.stopPropagation();reportProblem('${esc(r.tag)}')">report a problem</button></td></tr>`).join("") || '<tr><td colspan="6" class="muted">no runs yet</td></tr>';
   const sel = $("res-run"); const cur = sel.value;
   sel.innerHTML = RUNS.filter(r => r.conversations).map(r => `<option value="${esc(r.name)}" ${r.name === cur ? "selected" : ""}>${esc(r.name)} (${r.conversations})</option>`).join("");
   if (RUNS.some(r => r.status === "running") && !$("page-run").hidden) setTimeout(loadRuns, 8000);
@@ -456,6 +456,17 @@ async function saveAnnotation(next) {
   store.set("by", ann.by);
   try { const r = await api("/api/annotate", {run: CUR.run, file: CUR.file, annotation: ann}); $("ann-msg").textContent = "saved " + r.time; await loadRun(); if (next) { const n = ROWS.find(x => !x.annotation.verdict); if (n) openConversation(n.file); else closeDrawer(); } }
   catch (e) { $("ann-msg").textContent = e.message; }
+}
+
+// ── problem reports → GitHub issues, prefilled ────────────────────────────
+async function reportProblem(tag) {
+  try {
+    const r = await api("/api/report?tag=" + encodeURIComponent(tag || ""));
+    const url = `${r.url}?title=${encodeURIComponent(r.title)}&body=${encodeURIComponent(r.body)}`;
+    const w = window.open(url.length < 7500 ? url : `${r.url}?title=${encodeURIComponent(r.title)}`, "_blank");
+    if (url.length >= 7500) { try { await navigator.clipboard.writeText(r.body); alert("The log was too long for the link; it is on your clipboard — paste it into the issue."); } catch (e) {} }
+    if (!w) alert("Your browser blocked the new tab; allow pop-ups for this page and try again.");
+  } catch (e) { alert(e.message); }
 }
 
 // ── settings ──────────────────────────────────────────────────────────────

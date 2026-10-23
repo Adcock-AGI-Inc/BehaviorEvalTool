@@ -96,6 +96,10 @@ or commit it with git if you use git. A one-click share inside the tool is comin
 
 ## 6. If something looks wrong
 
+Stuck? Press **Report a problem** (Home, or next to a run on the Run page). It opens a GitHub issue with the tool version,
+your checks and the run's log already filled in; add what you did and what you saw. We read these and reply there.
+
+
 - **"no Chrome answering"** — the tool's Chrome is not running: Home → Start my Chrome.
 - **"this Chrome is not signed in to dev"** — the copied session expired. Sign in to dev in your everyday Chrome, then Start my Chrome again.
 - **Only the first message is sent, then nothing / "the trajectory viewer lists no runs for this conversation"** — the tool sends the
