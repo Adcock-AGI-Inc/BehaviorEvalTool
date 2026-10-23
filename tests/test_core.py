@@ -191,6 +191,7 @@ class HarnessTests(unittest.TestCase):
         self.assertEqual(ep.sent, ["find me a mechanic", "sunnyvale"])
         self.assertEqual((conv.stop, conv.user_turns, len(conv.turns), conv.user, conv.profile), ("done", 2, 3, "Alex Morgan", "alex"))
         self.assertEqual(ep.opened["profile"], {"name": "Alex Morgan"})
+        self.assertTrue(ep.opened["title"].startswith("[slot4] "))
 
     def test_closing_line_is_sent_then_stops(self):
         ep = FakeEndpoint([("two shops", "end_turn"), ("booked", "end_turn")])

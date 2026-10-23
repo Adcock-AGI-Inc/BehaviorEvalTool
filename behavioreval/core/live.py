@@ -96,7 +96,7 @@ class LiveChat:
 
     def _run(self) -> None:
         try:
-            self.conv.conversation_id = self.endpoint.open(self.conv.account, self.cfg.lane, f"behavioreval live {self.sc.id} {self.conv.started}", {})
+            self.conv.conversation_id = self.endpoint.open(self.conv.account, self.cfg.lane, f"[{self.conv.column}] {self.sc.title or self.sc.id} · live · {self.conv.started}", {})
             self.log(f"conversation {self.conv.conversation_id[:8]} as {self.person.name} on {self.conv.column}")
             say = self.sc.opening
             self.conv.stop = "max_turns"

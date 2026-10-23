@@ -61,7 +61,7 @@ def run(sc: Scenario, user: Profile, account: str, sim: UserSimulator, endpoint:
     label, _, _ = column(cfg)
     conv = Conversation(scenario=sc.id, user=user.name, account=account, profile=user.id, lane=cfg.lane, column=label, tags=list(sc.tags), started=time.strftime("%Y-%m-%d %H:%M:%S"))
     profile = user.profile if cfg.seed_profile else {}
-    conv.conversation_id = endpoint.open(account, cfg.lane, f"behavioreval {sc.id} {conv.started}", profile)
+    conv.conversation_id = endpoint.open(account, cfg.lane, f"[{label}] {sc.title or sc.id} · {conv.started}", profile)
     out(f"  conversation {conv.conversation_id[:8]} as {user.name} ({account or 'no account'}) on {label}")
 
     def assistant(turn: Turn) -> bool:

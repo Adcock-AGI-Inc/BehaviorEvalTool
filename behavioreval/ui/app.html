@@ -414,7 +414,7 @@ function renderRun() {
   $("res-summary").textContent = Object.entries(byCol).map(([c, v]) => `${c}: ${v.pass} of ${v.judged} judged PASS`).join(" · ");
   const reviewed = ROWS.filter(r => r.annotation.verdict).length;
   $("res-progress-text").textContent = `${reviewed} of ${ROWS.length} reviewed by a person`; $("res-progress").style.width = ROWS.length ? (100 * reviewed / ROWS.length) + "%" : "0";
-  $("res-table").querySelector("tbody").innerHTML = rows.map(r => `<tr class="r" onclick="openConversation('${esc(r.file)}')"><td>${esc(r.scenario)}</td><td>${esc(r.column)}</td><td>${r.user_turns}</td>
+  $("res-table").querySelector("tbody").innerHTML = rows.map(r => `<tr class="r" onclick="openConversation('${esc(r.file)}')"><td>${esc(r.scenario)}</td><td>${esc(r.column)}${r.served ? `<div class="muted small">served by ${esc(r.served)}</div>` : ""}</td><td>${r.user_turns}</td>
     <td class="${r.stop === "assistant_error" || String(r.stop).startsWith("error") ? "bad" : ""}">${esc(r.stop)}</td><td><span class="pill ${esc(r.verdict)}">${esc(r.verdict)}</span></td><td>${r.score ?? ""}</td>
     <td class="muted small">${r.fabrication ? "fabrication " : ""}${r.violations ? "acted without asking " : ""}</td><td>${r.annotation.verdict ? `<span class="pill ${esc(r.annotation.verdict)}">${esc(r.annotation.verdict)}</span>` : '<span class="muted small">—</span>'}</td><td>${r.conversation_id ? `<a class="small" href="${esc(STATE.web_url || "https://dev.hark.com")}/project/${esc(r.conversation_id)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">dev ↗</a>` : ""}</td></tr>`).join("") || '<tr><td colspan="9" class="muted">nothing here</td></tr>';
 }
