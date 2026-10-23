@@ -33,7 +33,7 @@
   "columns": [
     {
       "id": "default",
-      "label": "the product's model today (Sonnet 5.5)"
+      "label": "the product's model today (Opus 5.5)"
     },
     {
       "id": "slot1",
