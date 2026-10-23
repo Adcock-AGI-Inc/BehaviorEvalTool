@@ -43,6 +43,11 @@ class ViewerTests(unittest.TestCase):
         with self.assertRaises(TimeoutError):
             viewer.wait_for_runs("v", "dev", "c", 2, {}, 1, sleep=lambda s: None, now=iter([0, 5]).__next__, fetch=fetch)
         self.assertEqual(viewer.settled("v", "dev", "c", {}, 100, sleep=lambda s: None, fetch=fetch)[0]["reason"], "end_turn")
+        # a skeleton row (no provider, no duration, no reason) must not hold the conversation open
+        skel = [{"start": 1, "reason": "end_turn", "providers": ["hark-slot3"], "durMs": 35000}, {"start": 2, "reason": "", "providers": [], "durMs": 0}]
+        ticks = iter([0, 1, 2, 3, 4, 5, 999])
+        out = viewer.settled("v", "dev", "c", {}, 50, sleep=lambda s: None, now=lambda: next(ticks), fetch=lambda *a, **k: skel)
+        self.assertEqual([r["reason"] for r in out], ["end_turn"])
         lines = [{"lanes": [{"dispatch_path": "sub", "messages": []}, {"messages": [{"part": "run", "content": [{"type": "tool_use", "name": "web_search", "input": {"q": 1}}, {"type": "text"}]}, {"part": "prompt", "content": [{"type": "tool_use", "name": "x"}]}]}]}]
         self.assertEqual(viewer.calls_of(lines), [{"name": "web_search", "input": {"q": 1}, "result": "", "is_error": False}])
 

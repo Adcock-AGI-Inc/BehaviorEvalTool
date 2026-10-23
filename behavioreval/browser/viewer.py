@@ -63,20 +63,28 @@ def wait_for_runs(viewer_url: str, env: str, conv: str, expected: int, hdrs: dic
         sleep(10)
 
 
+def _real(r: dict) -> bool:
+    """A run that actually ran: the viewer also lists skeleton rows (no provider, no duration, no reason) for a slash
+    command such as /model or a wake-up that never started; those never get a reason and must not be waited for."""
+    return bool(r.get("providers")) or (r.get("durMs") or 0) > 0 or bool(r.get("reason"))
+
+
 def settled(viewer_url: str, env: str, conv: str, hdrs: dict[str, str], timeout_s: float, sleep=time.sleep, now=time.monotonic, fetch=conversation_runs, folder: str = "mine") -> list[dict]:
-    """Hold until every run of the conversation has ended and nothing new started for 8 s (a browser
-    subagent or a wake-up run may still be working on the last request)."""
+    """Hold until every real run of the conversation has ended and nothing new started for 8 s (a browser
+    subagent or a wake-up run may still be working on the last request). ``timeout_s`` caps the hold."""
     t0 = now()
     runs: list[dict] = []
     while now() - t0 < timeout_s:
         runs = fetch(viewer_url, env, conv, hdrs, folder)
-        if runs and all(r.get("reason") for r in runs):
+        real = [r for r in runs if _real(r)]
+        if real and all(r.get("reason") for r in real):
             sleep(8)
             again = fetch(viewer_url, env, conv, hdrs, folder)
-            if len(again) == len(runs) and all(r.get("reason") for r in again):
-                return sorted(again, key=lambda r: r.get("start", 0))
+            real2 = [r for r in again if _real(r)]
+            if len(real2) == len(real) and all(r.get("reason") for r in real2):
+                return sorted(real2, key=lambda r: r.get("start", 0))
         sleep(10)
-    return sorted(runs, key=lambda r: r.get("start", 0))
+    return sorted([r for r in runs if _real(r)], key=lambda r: r.get("start", 0))
 
 
 def rollouts(viewer_url: str, env: str, refs: list[str], hdrs: dict[str, str]) -> list[dict]:
