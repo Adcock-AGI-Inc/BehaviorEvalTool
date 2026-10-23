@@ -93,8 +93,11 @@ or commit it with git if you use git. A one-click share inside the tool is comin
 
 - **"no Chrome answering"** — the tool's Chrome is not running: Home → Start my Chrome.
 - **"this Chrome is not signed in to dev"** — the copied session expired. Sign in to dev in your everyday Chrome, then Start my Chrome again.
-- **"0 of 1 runs ended … viewer shows 0 run(s)"** — the viewer does not list your runs: `cloudflared access login` must use the
-  same Google account as dev. Run it again.
+- **Only the first message is sent, then nothing / "the trajectory viewer lists no runs for this conversation"** — the tool sends the
+  next message only after the viewer reports that the assistant finished, and the viewer only shows the runs of the Google account
+  it was signed in with. Run `cloudflared access login https://trajectory.tools.hark.com` again with the same account you use on dev.
+- **The dev tab opens and closes right away** — the copied Chrome profile is not signed in to dev, or dev took too long to load. Sign in to
+  dev in your everyday Chrome (the profile you picked in Set up), then Home → Start my Chrome again; the error text is in the run's log.
 - **Verdict UNREADABLE** — the judge's answer could not be read (a transient error). Command line: `python3 -m behavioreval rescore <run folder> --only-unreadable`.
 - **The user says "hold on, can you say that again in one line?"** — the simulated user's safe fallback when its own answer was unreadable. One or two per batch is normal.
 - **"Agent run failed" and then every later message fails in seconds** — on a self-hosted text-only lane (slot…), the assistant looked at an image and the lane cannot take images. Product-side; use the default model for tests that involve pictures.

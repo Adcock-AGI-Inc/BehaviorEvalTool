@@ -58,20 +58,26 @@ class ChromeEndpoint:
         return out.get("status"), (out.get("json") if out.get("json") is not None else out.get("text"))
 
     def _signed_in(self) -> None:
+        """Load the app in our tab and prove the session: a Cloudflare / Google page means the copied profile is not
+        signed in; a slow first load gets 90 s. On failure the tab is left open so the person can see what is on it."""
         self.tab.navigate(self.web + "/")
-        for _ in range(40):
+        last = {}
+        for _ in range(180):
             time.sleep(0.5)
-            st = self.tab.js("({url: location.href})") or {}
-            url = str(st.get("url", ""))
+            last = self.tab.js("({url: location.href, title: document.title})") or {}
+            url = str(last.get("url", ""))
             if "cloudflareaccess.com" in url or "accounts.google.com" in url:
-                raise RuntimeError(f"this Chrome is not signed in to {self.web} ({url.split('?')[0]}): sign in there once, then start it again")
+                self.tab = None
+                raise RuntimeError(f"this Chrome is not signed in to {self.web}: the page went to {url.split('?')[0]}. Sign in to dev in your everyday Chrome, then Start my Chrome again (it re-copies the profile)")
             if url.startswith(self.web):
                 status, _ = self.api("GET", "/api/connectors")
                 if status == 200:
                     return
                 if status in (401, 403):
-                    raise RuntimeError(f"{self.web} answered HTTP {status}: not signed in")
-        raise RuntimeError(f"the app did not load within 20 s")
+                    self.tab = None
+                    raise RuntimeError(f"{self.web} answered HTTP {status}: not signed in. Sign in to dev in your everyday Chrome, then Start my Chrome again")
+        self.tab = None
+        raise RuntimeError(f"the app did not load within 90 s (tab shows {str(last.get('url', ''))[:80]!r}, {str(last.get('title', ''))[:60]!r}); the tab was left open")
 
     def rows(self) -> list[dict]:
         status, data = self.api("GET", f"/api/messages/page?conversationId={self.conv}&limit=100")
@@ -124,6 +130,17 @@ class ChromeEndpoint:
             raise RuntimeError(f"messages.send HTTP {status}: {str(data)[:200]}")
         self.sent += 1
         t0 = time.monotonic()
+        if self.sent == 1:   # the viewer must list this conversation at all; otherwise every turn would wait the full timeout
+            seen_any = False
+            while time.monotonic() - t0 < 150:
+                if viewer.conversation_runs(self.cfg.viewer_url, self.cfg.env, self.conv, self.hdrs):
+                    seen_any = True
+                    break
+                time.sleep(10)
+            if not seen_any:
+                raise RuntimeError("the trajectory viewer lists no runs for this conversation after 150 s. The viewer only shows the runs of the Google "
+                                   "account it was signed in with: run `cloudflared access login https://trajectory.tools.hark.com` with the SAME account you use "
+                                   "on dev, then try again. (The message did reach the assistant; only the tool cannot see when it finished.)")
         runs = viewer.wait_for_runs(self.cfg.viewer_url, self.cfg.env, self.conv, self.sent, self.hdrs, timeout_s)
         runs = viewer.settled(self.cfg.viewer_url, self.cfg.env, self.conv, self.hdrs, max(30.0, timeout_s - (time.monotonic() - t0)))
         last = runs[-1] if runs else {}

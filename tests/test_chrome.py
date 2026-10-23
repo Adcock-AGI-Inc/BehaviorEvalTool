@@ -56,7 +56,7 @@ class FakeTab:
 
     def js(self, expr):
         if expr.startswith("({url"):
-            return {"url": "https://dev.hark.com/"}
+            return {"url": "https://dev.hark.com/", "title": "Hark"}
         if "/api/connectors" in expr:
             return {"status": 200, "json": {}}
         if "/api/conversations" in expr and "POST" in expr:
@@ -123,8 +123,11 @@ class ChromeEndpointTests(unittest.TestCase):
         tab = FakeTab()
         ep = ChromeEndpoint(cfg, out=lambda m: None, tab=tab, hdrs={})
         runs = [{"start": 1, "reason": "end_turn"}]
+        viewer.conversation_runs = lambda *a: runs
         viewer.wait_for_runs = lambda *a, **k: runs
         viewer.settled = lambda *a, **k: runs
+        import behavioreval.endpoints.chrome as C
+        C.time.sleep = lambda s: None
         ep.open("", "", "t", {})
         ep.turn("hi", 10)
         self.assertNotIn("model", tab.sent[0])
