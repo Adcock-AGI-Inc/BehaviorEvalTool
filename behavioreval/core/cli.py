@@ -48,7 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--runs", type=int, default=1, help="conversations per scenario per column")
     r.add_argument("--score", choices=tuple(scoring.NAMES), default="judge")
     r.add_argument("--columns", help="assistant columns, comma-separated: default, slot20, claude-opus-5-5 (default: the config's lane/model)")
-    r.add_argument("--parallel", type=int, default=3, help="conversations side by side (chrome: each in its own tab of your Chrome; evalsystem: never two on one account)")
+    r.add_argument("--parallel", type=int, default=8, help="conversations side by side (chrome: each in its own tab of your Chrome; evalsystem: never two on one account)")
     r.add_argument("--tag", help="run directory name suffix")
     r.add_argument("--resume", help="an existing run directory: skip what it already holds, add the rest")
     r.add_argument("--calibrate-first", dest="calibrate_first", action="store_true", help="before an account's first scenario, audit and correct the assistant's memory (maint/01; recorded, not scored)")

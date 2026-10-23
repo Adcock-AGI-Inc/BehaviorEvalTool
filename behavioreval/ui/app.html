@@ -108,7 +108,7 @@
   <div class="row" style="justify-content:space-between"><div><h1>Tests</h1><p class="sub">Tick the cards to run. Click a card to read or change it.</p></div>
     <div class="row"><input type="text" id="tests-search" placeholder="search…" oninput="renderTests()" style="width:220px"><button class="btn primary" onclick="newTest()">+ Add a card</button></div></div>
   <div class="bar" id="bar">
-    <div><div class="lbl">models to test</div><div class="chips" id="bar-cols" style="margin-top:6px"></div></div>
+    <div><div class="lbl">models to test</div><div class="chips" id="bar-cols" style="margin-top:6px"></div><input type="text" id="bar-cols-extra" placeholder="other slots, e.g. slot7, slot20" style="margin-top:6px; width:240px" oninput="$('run-cols-extra').value = this.value; renderBar()"></div>
     <div><div class="lbl">selected</div><div id="bar-count" style="margin-top:8px; font-weight:600"></div></div>
     <div><div class="lbl">repeats</div><input type="number" id="bar-runs" value="1" min="1" max="10" style="width:70px; margin-top:4px" onchange="renderBar()"></div>
     <span style="flex:1"></span>
@@ -130,7 +130,7 @@
       <label>models to test</label><div class="chips" id="run-cols"></div>
       <input type="text" id="run-cols-extra" placeholder="other model ids, comma separated (optional)" style="margin-top:6px">
       <div class="grid2" style="margin-top:4px"><div><label>repeats per test</label><input type="number" id="run-runs" value="1" min="1" max="10"></div><div><label>name this run</label><input type="text" id="run-tag"></div>
-        <div><label>conversations at a time</label><input type="number" id="run-parallel" value="3" min="1" max="8"><div class="muted small" id="run-parallel-note"></div></div></div>
+        <div><label>conversations at a time</label><input type="number" id="run-parallel" value="8" min="1" max="20"><div class="muted small" id="run-parallel-note"></div></div></div>
       <details style="margin-top:8px"><summary>more options</summary>
         <div class="row" style="margin-top:8px"><span class="chk"><input type="checkbox" id="run-judge" checked> judge each conversation</span><span class="chk"><input type="checkbox" id="run-calibrate"> calibrate memory first</span><span class="chk"><input type="checkbox" id="run-cleanup"> clean up after</span></div>
         <label>max user turns (blank = each test's own)</label><input type="number" id="run-turns" min="1" max="30" style="max-width:160px">
@@ -313,9 +313,10 @@ function renderBar() {
   $("bar-count").textContent = `${SEL.size} card(s)`;
   colChips($("bar-cols"));
   const reps = +$("bar-runs").value || 1;
-  $("bar-plan").textContent = SEL.size && COLS.size ? `${SEL.size} × ${COLS.size} model(s) × ${reps} = ${SEL.size * COLS.size * reps} conversation(s)` : "tick cards and a model";
+  const nCols = chosenColumns().length;
+  $("bar-plan").textContent = SEL.size && nCols ? `${SEL.size} × ${nCols} model(s) × ${reps} = ${SEL.size * nCols * reps} conversation(s)` : "tick cards and a model";
   const chromeDown = onChrome() && !(STATE.chrome || {}).up;
-  $("bar-start").disabled = !SEL.size || !COLS.size;
+  $("bar-start").disabled = !SEL.size || !nCols;
   $("bar-start").textContent = chromeDown ? "Start my Chrome first" : "Start";
 }
 async function startFromTests() {
@@ -367,7 +368,7 @@ async function previewTest() { try { const r = await api("/api/preview", {scenar
 function renderRunForm() {
   const p = myProfile();
   $("run-as").textContent = onChrome() ? ((STATE.chrome || {}).up ? `Runs in your Chrome as ${p.email || "your account"}; each conversation gets its own tab.` : "Your Chrome is not running yet — start it on Home (or in Set up).") : `Runs on this profile's test accounts.`;
-  $("run-parallel-note").textContent = onChrome() ? "tabs open side by side in your Chrome; 3 is a good default, 1 = one after another" : "never two on one account";
+  $("run-parallel-note").textContent = onChrome() ? "tabs open side by side in your Chrome; 8 is the default, lower it if your computer struggles" : "never two on one account";
   paintNotice("run-account");
   const sel = [...SEL].filter(id => TESTS.some(t => t.id === id));
   $("run-summary").innerHTML = sel.length ? `<b>${sel.length} test(s)</b>: ${sel.map(id => `<code>${esc(id)}</code>`).join(", ")} <a href="#" onclick="go('tests');return false">change</a>` : 'No tests selected yet. <a href="#" onclick="go(\'tests\');return false">Pick some</a>.';
@@ -381,7 +382,7 @@ function renderRunForm() {
 }
 function chosenColumns() { return [...COLS].concat($("run-cols-extra").value.split(",").map(x => x.trim()).filter(Boolean)); }
 async function startRun() {
-  const req = {profile: me(), scenarios: [...SEL], columns: chosenColumns(), runs: +$("run-runs").value || 1, parallel: +$("run-parallel").value || 3, max_turns: +$("run-turns").value || null, tag: $("run-tag").value,
+  const req = {profile: me(), scenarios: [...SEL], columns: chosenColumns(), runs: +$("run-runs").value || 1, parallel: +$("run-parallel").value || 8, max_turns: +$("run-turns").value || null, tag: $("run-tag").value,
                score: $("run-judge").checked ? "judge" : "none", calibrate_first: $("run-calibrate").checked, cleanup: $("run-cleanup").checked};
   if (!req.columns.length) { $("run-msg").textContent = "pick at least one model"; return; }
   $("run-msg").textContent = "starting…";

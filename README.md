@@ -55,7 +55,7 @@ are on and warns if your profile and your Chrome profile do not match.
 
 1. **Tests** — one list of cards (16 to start, taken from The Hark 100). Tick the ones you want, pick the models in the bar at the
    bottom, "Continue to run".
-2. **Run** — "conversations at a time" (3 by default, each in its own Chrome tab), repeats, a name; **Start batch**.
+2. **Run** — "conversations at a time" (8 by default, each in its own Chrome tab; lower it if your computer struggles), repeats, a name; **Start batch**. Any lane works as a model: the chips cover slot1–6, type others (slot7 … slot20) in the box.
    A conversation takes 2–10 minutes. The Runs table below shows progress; click a run for its log.
 3. **Results** — one row per conversation with the judge's verdict, score and flags. Click a row: the judge's reasons, your own
    verdict (PASS / FAIL / unsure, issue tags, a comment, "Save and next"), then the whole transcript with every tool call.
