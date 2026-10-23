@@ -59,7 +59,7 @@ are on and warns if your profile and your Chrome profile do not match.
    On a lane the first message of each conversation is `/model hark-slotN`, then the test's first message.
 2. **Run** — progress of the batch (8 conversations at a time by default, each in its own Chrome tab; lower it in Run → "conversations
    at a time" if your computer struggles). A conversation takes 2–10 minutes. Click a run for its log.
-3. **Results** (from the Runs table → *results*) — one row per conversation with the judge's verdict, score, flags and "served by" (which backend actually
+3. **Results** — one row per conversation with the judge's verdict, score, flags and "served by" (which backend actually
    answered, as the trajectory viewer recorded it). Click a row: the judge's reasons, your own verdict (PASS / FAIL / unsure,
    issue tags, a comment, "Save and next"), then the whole transcript with every tool call. "open on dev" shows the same
    conversation in the product. **Export CSV** has both the judge's and your verdicts.
