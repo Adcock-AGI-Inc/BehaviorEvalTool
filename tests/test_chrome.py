@@ -37,7 +37,7 @@ class ChromeProfileTests(unittest.TestCase):
 class ViewerTests(unittest.TestCase):
     def test_wait_settled_and_calls(self):
         seq = [[{"start": 2, "reason": ""}], [{"start": 2, "reason": "end_turn", "job": "j1", "calls": 3}]]
-        fetch = lambda *a: seq.pop(0) if len(seq) > 1 else seq[0]   # noqa: E731
+        fetch = lambda *a, **k: seq.pop(0) if len(seq) > 1 else seq[0]   # noqa: E731
         runs = viewer.wait_for_runs("v", "dev", "c", 1, {}, 100, sleep=lambda s: None, fetch=fetch)
         self.assertEqual(runs[0]["job"], "j1")
         with self.assertRaises(TimeoutError):
@@ -84,7 +84,8 @@ class FakeTab:
 
 class ChromeEndpointTests(unittest.TestCase):
     def setUp(self):
-        self.saved = {k: getattr(viewer, k) for k in ("conversation_runs", "wait_for_runs", "settled", "rollouts")}
+        self.saved = {k: getattr(viewer, k) for k in ("conversation_runs", "wait_for_runs", "settled", "rollouts", "folder_for")}
+        viewer.folder_for = lambda *a, **k: "me@hark.com" if a[-1] else "mine"
 
     def tearDown(self):
         for k, v in self.saved.items():
@@ -95,10 +96,11 @@ class ChromeEndpointTests(unittest.TestCase):
         tab = FakeTab()
         ep = ChromeEndpoint(cfg, out=lambda m: None, tab=tab, hdrs={"cf-access-token": "t"})
         runs = [{"start": 1, "reason": "end_turn", "job": "j1", "calls": 2, "providers": ["hark-slot20"], "durMs": 12000}]
-        viewer.conversation_runs = lambda *a: runs
+        viewer.conversation_runs = lambda *a, **k: runs
         viewer.wait_for_runs = lambda *a, **k: runs
         viewer.settled = lambda *a, **k: runs
-        viewer.rollouts = lambda *a, **k: [{"lanes": [{"messages": [{"part": "run", "content": [{"type": "tool_use", "name": "web_search", "input": {}}]}]}]}]
+        refs = []
+        viewer.rollouts = lambda v, e, r, h: (refs.extend(r) or [{"lanes": [{"messages": [{"part": "run", "content": [{"type": "tool_use", "name": "web_search", "input": {}}]}]}]}])
         import behavioreval.endpoints.chrome as C
         C.time.sleep = lambda s: None
         conv = ep.open("me@hark.com", "slot20", "t", {"name": "x"})
@@ -110,6 +112,7 @@ class ChromeEndpointTests(unittest.TestCase):
         self.assertEqual(tab.sent[1]["modelProvider"], "hark-slot20")
         self.assertEqual((t.reply, t.reason, t.calls[0]["name"], t.duration_s), ("reply 2", "end_turn", "web_search", 12.0))
         self.assertIn("served by hark-slot20", t.note)
+        self.assertEqual((ep.folder, refs[0]), ("me@hark.com", "me@hark.com/conv-1/j1"))   # the account's own viewer folder
         t2 = ep.turn("sunnyvale", 60)
         self.assertEqual((t2.reply, t2.note), ("reply 3", ""))   # only the new row, no note after the first turn
         self.assertEqual(ep.sent, 2)
@@ -123,7 +126,7 @@ class ChromeEndpointTests(unittest.TestCase):
         tab = FakeTab()
         ep = ChromeEndpoint(cfg, out=lambda m: None, tab=tab, hdrs={})
         runs = [{"start": 1, "reason": "end_turn"}]
-        viewer.conversation_runs = lambda *a: runs
+        viewer.conversation_runs = lambda *a, **k: runs
         viewer.wait_for_runs = lambda *a, **k: runs
         viewer.settled = lambda *a, **k: runs
         import behavioreval.endpoints.chrome as C
@@ -131,6 +134,7 @@ class ChromeEndpointTests(unittest.TestCase):
         ep.open("", "", "t", {})
         ep.turn("hi", 10)
         self.assertNotIn("model", tab.sent[0])
+        self.assertEqual(ep.folder, "mine")
 
 
 if __name__ == "__main__":

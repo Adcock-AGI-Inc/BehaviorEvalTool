@@ -32,16 +32,29 @@ def get(viewer_url: str, path: str, hdrs: dict[str, str]) -> str:
         raise RuntimeError(f"viewer {path} answered HTTP {exc.code}: {exc.read()[:160]!r}") from None
 
 
-def conversation_runs(viewer_url: str, env: str, conv: str, hdrs: dict[str, str]) -> list[dict]:
-    return json.loads(get(viewer_url, f"/api/{env}/conversations/mine/{conv}/runs", hdrs)).get("runs", [])
+def conversation_runs(viewer_url: str, env: str, conv: str, hdrs: dict[str, str], folder: str = "mine") -> list[dict]:
+    """``folder`` is the viewer's account folder: ``mine`` = the account the viewer was signed in with; a dev account
+    that differs from it (anderson1@hark.com while signed in as anderson.breazeale@) is its own folder, named by its email."""
+    return json.loads(get(viewer_url, f"/api/{env}/conversations/{folder}/{conv}/runs", hdrs)).get("runs", [])
+
+
+def folder_for(viewer_url: str, env: str, conv: str, hdrs: dict[str, str], email: str) -> str:
+    """The folder this conversation's runs will appear in: the account's own folder when the viewer knows it, else ``mine``."""
+    if email:
+        try:
+            get(viewer_url, f"/api/{env}/conversations/{email}/{conv}/runs", hdrs)
+            return email
+        except RuntimeError:
+            pass
+    return "mine"
 
 
 def wait_for_runs(viewer_url: str, env: str, conv: str, expected: int, hdrs: dict[str, str], timeout_s: float,
-                  sleep=time.sleep, now=time.monotonic, fetch=conversation_runs) -> list[dict]:
+                  sleep=time.sleep, now=time.monotonic, fetch=conversation_runs, folder: str = "mine") -> list[dict]:
     """The conversation's runs once ``expected`` of them have ended (a non-empty reason)."""
     t0 = now()
     while True:
-        runs = fetch(viewer_url, env, conv, hdrs)
+        runs = fetch(viewer_url, env, conv, hdrs, folder)
         done = [r for r in runs if r.get("reason")]
         if len(done) >= expected:
             return sorted(runs, key=lambda r: r.get("start", 0))
@@ -50,16 +63,16 @@ def wait_for_runs(viewer_url: str, env: str, conv: str, expected: int, hdrs: dic
         sleep(10)
 
 
-def settled(viewer_url: str, env: str, conv: str, hdrs: dict[str, str], timeout_s: float, sleep=time.sleep, now=time.monotonic, fetch=conversation_runs) -> list[dict]:
+def settled(viewer_url: str, env: str, conv: str, hdrs: dict[str, str], timeout_s: float, sleep=time.sleep, now=time.monotonic, fetch=conversation_runs, folder: str = "mine") -> list[dict]:
     """Hold until every run of the conversation has ended and nothing new started for 8 s (a browser
     subagent or a wake-up run may still be working on the last request)."""
     t0 = now()
     runs: list[dict] = []
     while now() - t0 < timeout_s:
-        runs = fetch(viewer_url, env, conv, hdrs)
+        runs = fetch(viewer_url, env, conv, hdrs, folder)
         if runs and all(r.get("reason") for r in runs):
             sleep(8)
-            again = fetch(viewer_url, env, conv, hdrs)
+            again = fetch(viewer_url, env, conv, hdrs, folder)
             if len(again) == len(runs) and all(r.get("reason") for r in again):
                 return sorted(again, key=lambda r: r.get("start", 0))
         sleep(10)

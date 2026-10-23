@@ -49,6 +49,8 @@ class ChromeEndpoint:
         self.conv = ""
         self.seen: set = set()
         self.sent = 0
+        self.account = ""
+        self.folder = "mine"
 
     # ── page side ────────────────────────────────────────────────────────
     def api(self, method: str, path: str, body=None):
@@ -85,6 +87,7 @@ class ChromeEndpoint:
         return msgs if isinstance(msgs, list) else []
 
     def open(self, account: str, lane: str, title: str, profile: dict) -> str:
+        self.account = account or ""
         if profile:
             self.out("  (chrome endpoint: the profile page of a real account is never written)")
         if self.tab is None:
@@ -102,6 +105,10 @@ class ChromeEndpoint:
             self.tab.navigate(f"{self.web}/project/{self.conv}")
         except Exception:
             pass
+        # Which viewer folder this account's runs land in: its own (anderson1@hark.com) or 'mine' (the viewer login itself).
+        self.folder = viewer.folder_for(self.cfg.viewer_url, self.cfg.env, self.conv, self.hdrs, self.account)
+        if self.folder != "mine":
+            self.out(f"  viewer folder: {self.folder}")
         label, model, provider = column(self.cfg)
         self.note = f"model={model}" + (f" modelProvider={provider}" if provider else "") + " on every message" if model else "the product's default model"
         if self.cfg.lane:
@@ -133,21 +140,22 @@ class ChromeEndpoint:
         if self.sent == 1:   # the viewer must list this conversation at all; otherwise every turn would wait the full timeout
             seen_any = False
             while time.monotonic() - t0 < 150:
-                if viewer.conversation_runs(self.cfg.viewer_url, self.cfg.env, self.conv, self.hdrs):
+                if viewer.conversation_runs(self.cfg.viewer_url, self.cfg.env, self.conv, self.hdrs, self.folder):
                     seen_any = True
                     break
                 time.sleep(10)
             if not seen_any:
-                raise RuntimeError("the trajectory viewer lists no runs for this conversation after 150 s. The viewer only shows the runs of the Google "
-                                   "account it was signed in with: run `cloudflared access login https://trajectory.tools.hark.com` with the SAME account you use "
-                                   "on dev, then try again. (The message did reach the assistant; only the tool cannot see when it finished.)")
-        runs = viewer.wait_for_runs(self.cfg.viewer_url, self.cfg.env, self.conv, self.sent, self.hdrs, timeout_s)
-        runs = viewer.settled(self.cfg.viewer_url, self.cfg.env, self.conv, self.hdrs, max(30.0, timeout_s - (time.monotonic() - t0)))
+                raise RuntimeError(f"the trajectory viewer lists no runs for this conversation after 150 s (looked in folder '{self.folder}'). Either the dev account "
+                                   f"{self.account or '(none set)'} is not recorded by the viewer, or the viewer login is a different account: set your dev email in "
+                                   "Set up, and run `cloudflared access login https://trajectory.tools.hark.com`. (The message did reach the assistant; only the tool "
+                                   "cannot see when it finished.)")
+        runs = viewer.wait_for_runs(self.cfg.viewer_url, self.cfg.env, self.conv, self.sent, self.hdrs, timeout_s, folder=self.folder)
+        runs = viewer.settled(self.cfg.viewer_url, self.cfg.env, self.conv, self.hdrs, max(30.0, timeout_s - (time.monotonic() - t0)), folder=self.folder)
         last = runs[-1] if runs else {}
         calls: list[dict] = []
         if last.get("calls") and last.get("job"):
             try:
-                calls = viewer.calls_of(viewer.rollouts(self.cfg.viewer_url, self.cfg.env, [f"mine/{self.conv}/{last['job']}"], self.hdrs))
+                calls = viewer.calls_of(viewer.rollouts(self.cfg.viewer_url, self.cfg.env, [f"{self.folder}/{self.conv}/{last['job']}"], self.hdrs))
             except Exception as exc:
                 self.out(f"    (rollout not read: {type(exc).__name__})")
         current = self.rows()

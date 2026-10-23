@@ -94,8 +94,9 @@ or commit it with git if you use git. A one-click share inside the tool is comin
 - **"no Chrome answering"** — the tool's Chrome is not running: Home → Start my Chrome.
 - **"this Chrome is not signed in to dev"** — the copied session expired. Sign in to dev in your everyday Chrome, then Start my Chrome again.
 - **Only the first message is sent, then nothing / "the trajectory viewer lists no runs for this conversation"** — the tool sends the
-  next message only after the viewer reports that the assistant finished, and the viewer only shows the runs of the Google account
-  it was signed in with. Run `cloudflared access login https://trajectory.tools.hark.com` again with the same account you use on dev.
+  next message only after the viewer reports that the assistant finished. The viewer files runs per account: your viewer-login
+  account's runs under "mine", a different dev account (e.g. `anderson1@hark.com`) under its own email. The tool looks in the folder
+  of the dev email you set in Set up, so set it, and make sure that account is one the viewer records (not every account is).
 - **The dev tab opens and closes right away** — the copied Chrome profile is not signed in to dev, or dev took too long to load. Sign in to
   dev in your everyday Chrome (the profile you picked in Set up), then Home → Start my Chrome again; the error text is in the run's log.
 - **Verdict UNREADABLE** — the judge's answer could not be read (a transient error). Command line: `python3 -m behavioreval rescore <run folder> --only-unreadable`.
