@@ -18,7 +18,7 @@ class Config:
     user_provider: str = "deepinfra/fp8"   # OpenRouter provider pin for the user model ("" = any)
     temperature: float = 0.7
     max_tokens: int = 300
-    max_turns: int = 5                 # user messages per conversation, the opening included
+    max_turns: int = 10                # at most this many user messages per conversation (the user usually stops earlier)
     turn_timeout_s: float = 600.0      # how long one assistant turn may take
     reply_chars: int = 2000            # of the assistant's reply the user model gets to read
     max_consecutive_errors: int = 2    # assistant turns that fail with no reply in a row before the conversation stops

@@ -93,8 +93,8 @@
     <div class="row" style="margin-top:12px"><button class="btn primary" id="home-go" onclick="go('tests')" disabled>All set → pick tests</button><span class="muted small" id="home-go-note"></span></div></div>
   <div id="home-account" class="card" style="margin:0 0 14px"></div>
   <div class="steps">
-    <div class="step"><div class="k">Step 1</div><h3>Pick tests</h3><p class="muted">Each category has a <b>short ask</b> and a <b>detailed ask</b>. Tick the ones you want, or add your own.</p><button class="btn" onclick="go('tests')">Go to tests</button></div>
-    <div class="step"><div class="k">Step 2</div><h3>Run</h3><p class="muted">A batch runs one conversation after another in your Chrome. Or watch one live and steer it turn by turn.</p><button class="btn" onclick="go('run')">Go to run</button></div>
+    <div class="step"><div class="k">Step 1</div><h3>Pick tests</h3><p class="muted">Tick the test cards you want, or add your own.</p><button class="btn" onclick="go('tests')">Go to tests</button></div>
+    <div class="step"><div class="k">Step 2</div><h3>Run</h3><p class="muted">Conversations run in tabs of your Chrome; you can watch them there.</p><button class="btn" onclick="go('run')">Go to run</button></div>
     <div class="step"><div class="k">Step 3</div><h3>Review</h3><p class="muted">Read each conversation with its tool calls and the judge's reasons, give your verdict, export a CSV.</p><button class="btn" onclick="go('results')">Go to results</button></div>
   </div>
   <h2>Recent runs</h2>
@@ -104,7 +104,6 @@
 <section id="page-tests" hidden>
   <div class="row" style="justify-content:space-between"><div><h1>Tests</h1><p class="sub">Tick what to run. Click a card to read or edit it. <span id="tests-lint" class="small"></span></p></div>
     <div class="row"><input type="text" id="tests-search" placeholder="search…" oninput="renderTests()" style="width:220px"></div></div>
-  <p class="muted small" style="margin:0 0 12px"><span class="pill open">short ask</span> one line, the assistant must ask for the rest &nbsp;·&nbsp; <span class="pill preset">detailed ask</span> everything said up front, several steps</p>
   <div class="card" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; border-style:dashed">
     <div style="flex:1; min-width:240px"><strong>Add your own test</strong><div class="muted small">Pick a category (or make a new one), write the first message the way a real person would, and list the details they would give only when asked.</div></div>
     <select id="tests-newcat" style="width:auto; min-width:220px"></select>
@@ -134,25 +133,8 @@
     <div class="card">
       <h2 style="margin-top:0">While it runs</h2>
       <p class="muted small">Every conversation opens in its own tab of the tool's Chrome, so you can watch them there. Each run below has a link to open its conversation on dev. When a batch finishes, the judge's verdicts show up in Results.</p>
-      <details><summary>Steer one conversation by hand (optional)</summary>
-        <p class="muted small" style="margin-top:8px">One test, one turn at a time: after each reply the simulated user proposes its next line and you send it, change it, or let it run.</p>
-        <label>test</label><select id="chat-scenario"></select>
-        <label>model</label><select id="chat-column"></select>
-        <div class="row" style="margin-top:12px"><button class="btn primary" id="chat-start" onclick="chatStart()">Start</button><span class="chk"><input type="checkbox" id="chat-auto"> hands-off from the start</span><span id="chat-msg" class="muted small"></span></div>
-      </details>
-    </div>
-  </div>
 
-  <div id="chat-box" class="card" hidden>
-    <div class="row" style="justify-content:space-between"><div class="row"><strong>Live conversation</strong><span id="chat-state" class="pill"></span><span id="chat-meta" class="muted small"></span></div><button class="btn small danger" onclick="chatAct('end')">End now</button></div>
-    <div id="chat-turns"></div>
-    <div id="chat-your-turn" hidden>
-      <label>the simulated user wants to say (<span id="chat-why"></span>) — change it if you like</label>
-      <textarea id="chat-text"></textarea>
-      <div class="row" style="margin-top:8px"><button class="btn primary" onclick="chatSend(false)">Send</button><button class="btn" onclick="chatSend(true)">Send as the last line</button><button class="btn" onclick="chatAct('auto', {on: true})">Let it run on its own</button></div>
     </div>
-    <div id="chat-done" hidden><div id="chat-judge" style="margin-top:8px"></div><button class="btn" style="margin-top:8px" onclick="chatOpenResult()">Open in results</button></div>
-    <details><summary>log</summary><pre id="chat-log"></pre></details>
   </div>
 
   <h2>Runs</h2>
@@ -213,8 +195,8 @@
         <label>done when — the judge's hard requirement; make it checkable</label><textarea id="f-done_when"></textarea></div>
       <div><label>details they give only when asked — one per line (answers to every question the assistant will ask)</label><textarea id="f-hidden" style="min-height:100px"></textarea>
         <label>steps, in order (optional, one per line)</label><textarea id="f-beats"></textarea>
-        <label>max user turns</label><input type="number" id="f-max_turns" min="1" max="30">
-        <label>tags (comma separated) — include <b>open</b> for a short ask or <b>preset</b> for a detailed ask</label><input type="text" id="f-tags">
+        <label>max user messages (it stops earlier when done; 10 is the norm)</label><input type="number" id="f-max_turns" min="1" max="30">
+        <label>tags (comma separated, optional)</label><input type="text" id="f-tags">
         <label>what it leaves on the account (for cleanup); "nothing" if nothing</label><input type="text" id="f-leaves">
         <label>facts that differ from my profile for this test (JSON, optional)</label><textarea id="f-user"></textarea>
         <label>extra judge criteria (optional, one per line)</label><textarea id="f-criteria"></textarea></div>
@@ -247,7 +229,7 @@ function go(page) {
   $("bar").hidden = !(page === "tests" && SEL.size);
   if (page === "home") renderHome();
   if (page === "tests") renderTests();
-  if (page === "run") { renderRunForm(); loadRuns(); chatPoll(); }
+  if (page === "run") { renderRunForm(); loadRuns(); }
   if (page === "results") loadRuns().then(loadRun);
   if (page === "settings") renderSettings();
   location.hash = page;
@@ -311,7 +293,7 @@ function copyText(id, btn) { const t = $(id).textContent; const done = () => { b
 async function loadTests() { TESTS = await api("/api/scenarios?profile=" + encodeURIComponent(me())); }
 function kind(t) { return (t.tags || []).includes("preset") ? "preset" : (t.tags || []).includes("open") ? "open" : ""; }
 const KIND_LABEL = {open: "short ask", preset: "detailed ask"};
-function kindPill(t) { const k = kind(t); return k ? `<span class="pill ${k}">${KIND_LABEL[k]}</span>` : ""; }
+function kindPill(t) { return ""; }
 function titleOf(t) { const slug = (t.id || "").split("/").pop().replace(/^\d+_/, "").replace(/^(open|preset)_/, ""); return slug.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase()); }
 function renderTests() {
   const q = $("tests-search").value.toLowerCase();
@@ -327,7 +309,7 @@ function renderTests() {
     const label = (items[0] || {}).set_label || set;
     return `<div class="cat"><h2>${esc(label)}</h2><span class="muted small">${esc(set)}</span><a href="#" onclick="selectSet('${esc(set)}');return false">select both</a></div><div class="tests">` +
       items.map(t => `<div class="test ${SEL.has(t.id) ? "sel" : ""}" onclick="openTest('${esc(t.id)}')"><input type="checkbox" ${SEL.has(t.id) ? "checked" : ""} ${t.problems.length ? "disabled" : ""} onclick="event.stopPropagation(); toggleSel('${esc(t.id)}', this.checked)">
-        <div class="t"><div class="title"><span>${esc(titleOf(t))}</span>${kindPill(t)}</div><div class="q">“${esc(t.opening)}”</div><div class="meta"><span>${t.max_turns || STATE.config.max_turns} turns</span>${(t.beats || []).length ? `<span>${t.beats.length} steps</span>` : ""}${t.problems.length ? `<span class="bad">${esc(t.problems[0])}</span>` : ""}</div></div></div>`).join("") +
+        <div class="t"><div class="title"><span>${esc(titleOf(t))}</span>${kindPill(t)}</div><div class="q">“${esc(t.opening)}”</div><div class="meta"><span>up to ${t.max_turns || STATE.config.max_turns} turns</span>${(t.beats || []).length ? `<span>${t.beats.length} steps</span>` : ""}${t.problems.length ? `<span class="bad">${esc(t.problems[0])}</span>` : ""}</div></div></div>`).join("") +
       `<div class="test add" onclick="newTest('${esc(set)}')">+ add a test to ${esc(label)}</div></div>`;
   }).join("");
   renderBar();
@@ -349,13 +331,13 @@ function openTest(id) {
   const t = TESTS.find(x => x.id === id); CUR = {test: t};
   $("d-title").textContent = titleOf(t) + "  ·  " + t.id; $("d-conv").hidden = true; $("d-view").hidden = false; $("d-edit").hidden = true; $("d-edit-btn").hidden = false; $("d-edit-btn").textContent = "Edit";
   $("d-view").innerHTML = `<div class="turn user"><div class="who">first message, sent as written</div>${esc(t.opening)}</div>
-    <div class="kv"><div>kind</div><div>${kindPill(t) || "—"} · ${t.max_turns || STATE.config.max_turns} user turns</div>
+    <div class="kv"><div>turns</div><div>up to ${t.max_turns || STATE.config.max_turns} user messages (it usually stops earlier)</div>
     <div>what is going on</div><div>${esc(t.situation || "—")}</div><div>what they want</div><div>${esc(t.goal || "—")}</div>
     <div>details given only when asked</div><div>${(t.hidden || []).map(h => "• " + esc(h)).join("<br>") || "—"}</div>
     ${(t.beats || []).length ? `<div>steps</div><div>${t.beats.map((b, i) => (i + 1) + ". " + esc(b)).join("<br>")}</div>` : ""}
     <div>done when</div><div>${esc(t.done_when || "—")}</div><div>leaves on the account</div><div>${esc(t.leaves || "—")}</div>
     ${t.problems.length ? `<div class="bad">needs attention</div><div class="bad">${esc(t.problems.join("; "))}</div>` : ""}</div>
-    <div class="row" style="margin-top:14px"><button class="btn primary" onclick="toggleSel('${esc(t.id)}', true); closeDrawer()">Select for the batch</button><button class="btn" onclick="closeDrawer(); go('run'); $('chat-scenario').value='${esc(t.id)}'">Watch it live</button></div>`;
+    <div class="row" style="margin-top:14px"><button class="btn primary" onclick="toggleSel('${esc(t.id)}', true); closeDrawer()">Select for the batch</button></div>`;
   fillForm(t); openDrawer();
 }
 function openDrawer() { $("drawer").classList.add("on"); $("scrim").classList.add("on"); }
@@ -422,10 +404,8 @@ function renderRunForm() {
   const chromeDown = onChrome() && !(STATE.chrome || {}).up;
   $("run-start").disabled = !sel.length || chromeDown;
   $("run-chrome-btn").hidden = !chromeDown;
-  $("chat-start").disabled = chromeDown;
-  const chat = $("chat-scenario"); const cur = chat.value;
-  chat.innerHTML = TESTS.filter(t => !t.problems.length && t.set !== "maint").map(t => `<option value="${esc(t.id)}" ${t.id === cur ? "selected" : ""}>${esc(t.id)} — ${esc(t.opening.slice(0, 60))}</option>`).join("");
-  $("chat-column").innerHTML = (STATE.columns || []).map(c => `<option value="${esc(c.id)}">${esc(c.id)} — ${esc(c.label || "")}</option>`).join("");
+
+
 }
 function chosenColumns() { return [...COLS].concat($("run-cols-extra").value.split(",").map(x => x.trim()).filter(Boolean)); }
 async function startRun() {
@@ -449,44 +429,6 @@ async function loadRuns() {
 async function showLog(tag) { const r = await fetch(`/api/log?tag=${encodeURIComponent(tag)}`); $("run-log").hidden = false; $("run-log").textContent = await r.text(); $("run-log").scrollTop = 1e9; }
 async function stopRun(tag) { await api("/api/runs/stop", {tag}); loadRuns(); }
 function openResults(name) { go("results"); $("res-run").value = name; loadRun(); }
-
-// ── live chat ─────────────────────────────────────────────────────────────
-let CHAT_TIMER = null;
-async function chatStart() {
-  const req = {profile: me(), scenario: $("chat-scenario").value, column: $("chat-column").value, auto: $("chat-auto").checked};
-  $("chat-msg").textContent = "starting…";
-  try { CHAT = await api("/api/live/start", req); $("chat-msg").textContent = ""; renderChat(); chatPoll(); } catch (e) { $("chat-msg").textContent = e.message; }
-}
-async function chatPoll() {
-  clearTimeout(CHAT_TIMER);
-  try { CHAT = await api("/api/live"); } catch (e) { return; }
-  renderChat();
-  if (CHAT.state && !["idle", "finished", "error"].includes(CHAT.state) && !$("page-run").hidden) CHAT_TIMER = setTimeout(chatPoll, 3000);
-}
-async function chatSend(end) { await chatAct("send", {text: $("chat-text").value, end: !!end}); }
-async function chatAct(action, extra) { try { CHAT = await api("/api/live/act", {action, ...(extra || {})}); renderChat(); chatPoll(); } catch (e) { $("chat-msg").textContent = e.message; } }
-function renderChat() {
-  const c = CHAT || {state: "idle"};
-  $("chat-box").hidden = c.state === "idle" || !c.state;
-  $("chat-state").textContent = c.state + (c.auto ? " · hands-off" : ""); $("chat-state").className = "pill " + (c.state === "finished" ? "PASS" : c.state === "error" ? "FAIL" : "running");
-  $("chat-meta").innerHTML = c.scenario ? `${esc(c.scenario)} · ${esc(c.column)} · ${(c.turns || []).filter(t => t.user).length}/${c.max_turns} turns` + (c.conversation_id ? ` · <a href="${esc(STATE.web_url || "https://dev.hark.com")}/project/${esc(c.conversation_id)}" target="_blank" rel="noopener">open on dev ↗</a>` : "") : "";
-  $("chat-start").disabled = !["idle", "finished", "error", undefined].includes(c.state);
-  $("chat-turns").innerHTML = (c.turns || []).map(t => {
-    if (!t.user) return `<div class="muted small">the simulated user decided to stop: ${esc((t.sim || {}).why)}</div>`;
-    const calls = (t.calls || []).map(x => `<details><summary>${esc(x.name)}</summary><pre>${esc(JSON.stringify(x.input || {}, null, 1))}</pre></details>`).join("");
-    const edited = t.sim && t.sim.edited ? ` <span class="warn small">(you changed it; proposed: ${esc(t.sim.proposed)})</span>` : "";
-    return `<div class="turn user"><div class="who">user ${t.n}${t.sim && t.sim.why ? ` · ${esc(t.sim.why)}` : ""}</div>${esc(t.user)}${edited}</div>
-      <div class="turn assistant"><div class="who">assistant · ${t.assistant || t.reason ? `${esc(t.reason || "?")} · ${(t.calls || []).length} tool calls · ${Math.round(t.duration_s || 0)} s` : "working…"}${t.error ? ` · <span class="bad">${esc(t.error)}</span>` : ""}</div>${esc(t.assistant || "")}${calls}</div>`;
-  }).join("");
-  const yours = c.state === "your_turn" && c.proposal;
-  $("chat-your-turn").hidden = !yours;
-  if (yours && document.activeElement !== $("chat-text")) { $("chat-text").value = c.proposal.say; $("chat-why").textContent = c.proposal.why + (c.proposal.done ? " · it would end here" : ""); }
-  $("chat-done").hidden = c.state !== "finished";
-  if (c.state === "finished") { const j = ((c.score || {}).judge || [])[0] || {}; $("chat-judge").innerHTML = `<span class="pill ${esc((c.score || {}).verdict || "-")}">${esc((c.score || {}).verdict || "-")}</span> score ${j.score ?? "?"} · ${esc(j.reasoning || ((c.score || {}).lines || []).join(" "))}`; }
-  if (c.state === "error") $("chat-msg").textContent = c.error;
-  $("chat-log").textContent = (c.log || []).join("\n");
-}
-function chatOpenResult() { if (!CHAT || !CHAT.path) return; const parts = CHAT.path.split("/"); openResults(parts[parts.length - 2]); }
 
 // ── results ───────────────────────────────────────────────────────────────
 async function loadRun() {

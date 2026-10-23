@@ -3,7 +3,7 @@
   "user_provider": "deepinfra/fp8",
   "temperature": 0.7,
   "max_tokens": 300,
-  "max_turns": 5,
+  "max_turns": 10,
   "turn_timeout_s": 600,
   "reply_chars": 2000,
   "max_consecutive_errors": 2,
