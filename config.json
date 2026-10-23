@@ -33,31 +33,87 @@
   "columns": [
     {
       "id": "default",
-      "label": "default — the product's model today (Sonnet 5.5)"
+      "label": "the product's model today (Sonnet 5.5)"
     },
     {
       "id": "slot1",
-      "label": "lane slot1 (self-hosted model)"
+      "label": "lane slot1"
     },
     {
       "id": "slot2",
-      "label": "lane slot2 (self-hosted model)"
+      "label": "lane slot2"
     },
     {
       "id": "slot3",
-      "label": "lane slot3 (self-hosted model)"
+      "label": "lane slot3"
     },
     {
       "id": "slot4",
-      "label": "lane slot4 (self-hosted model)"
+      "label": "lane slot4"
     },
     {
       "id": "slot5",
-      "label": "lane slot5 (self-hosted model)"
+      "label": "lane slot5"
     },
     {
       "id": "slot6",
-      "label": "lane slot6 (self-hosted model)"
+      "label": "lane slot6"
+    },
+    {
+      "id": "slot7",
+      "label": "lane slot7"
+    },
+    {
+      "id": "slot8",
+      "label": "lane slot8"
+    },
+    {
+      "id": "slot9",
+      "label": "lane slot9"
+    },
+    {
+      "id": "slot10",
+      "label": "lane slot10"
+    },
+    {
+      "id": "slot11",
+      "label": "lane slot11"
+    },
+    {
+      "id": "slot12",
+      "label": "lane slot12"
+    },
+    {
+      "id": "slot13",
+      "label": "lane slot13"
+    },
+    {
+      "id": "slot14",
+      "label": "lane slot14"
+    },
+    {
+      "id": "slot15",
+      "label": "lane slot15"
+    },
+    {
+      "id": "slot16",
+      "label": "lane slot16"
+    },
+    {
+      "id": "slot17",
+      "label": "lane slot17"
+    },
+    {
+      "id": "slot18",
+      "label": "lane slot18"
+    },
+    {
+      "id": "slot19",
+      "label": "lane slot19"
+    },
+    {
+      "id": "slot20",
+      "label": "lane slot20"
     }
   ],
   "scenarios_dir": "scenarios",
