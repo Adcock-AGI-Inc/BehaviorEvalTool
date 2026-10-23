@@ -82,14 +82,12 @@ Tests → **+ Add a card**:
 - **3 · judge** — optional. Empty means the judge grades against "done when"; add anything else it should check.
 
 "What will the simulated user be told?" shows the full briefing before you run anything. Cards are saved on your machine
-(`scenarios/`) and are there every time you open the tool; "Share my changes" sends them to the team.
+(`scenarios/`) and are there every time you open the tool; see §5 for sharing.
 
-## 5. Sharing with the team
+## 5. Sharing cards (for now)
 
-Set up page → **Share with the team**: "Get updates" brings in the cards others added; "Share my changes" (your name + one
-line) sends yours to the team repository. Only test cards and the settings file are shared; your profile, your key and your
-results stay on your machine. If you make your own category, name it after you or the topic (`anderson_shopping`) so two
-people never edit the same file.
+Cards live in `scenarios/` as plain text, one card per line. To share them, send the file to whoever keeps the repository,
+or commit it with git if you use git. A one-click share inside the tool is coming later.
 
 ## 6. If something looks wrong
 
@@ -122,6 +120,5 @@ python3 -m behavioreval run --profile anderson --scenarios all --columns default
 python3 -m behavioreval run --profile anderson --scenarios all --only shopping/01_open_work_laptop --runs 2
 python3 -m behavioreval rescore ~/behavioreval-data/runs/<run> --only-unreadable
 python3 -m behavioreval audit ~/behavioreval-data/runs/<run> --sample 10 --repeats 2   # is the judge consistent
-python3 -m behavioreval sync status | pull | push --who anderson -m "3 shopping cards"
 python3 -m unittest discover -s tests -t .                           # tests
 ```

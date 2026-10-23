@@ -155,7 +155,7 @@
 </section>
 
 <section id="page-settings" hidden>
-  <h1>Set up</h1><p class="sub">Once per machine: your key, the viewer login, who you are, your Chrome. Then share tests with the team from here.</p>
+  <h1>Set up</h1><p class="sub">Once per machine: your key, the viewer login, who you are, your Chrome.</p>
   <div class="grid2">
     <div class="card"><h2 style="margin-top:0">Is everything ready?</h2><div id="set-checks"></div></div>
     <div class="card"><h2 style="margin-top:0">My Chrome</h2><p class="muted small">Runs happen in a second Chrome started from a copy of the profile you use for dev (sign-in included). Your everyday Chrome keeps running. Pick the profile signed in to dev, start it, and leave that window alone during runs.</p>
@@ -175,9 +175,7 @@
     </div>
     <div class="row" style="margin-top:10px"><button class="btn primary" onclick="saveProfile()">Save profile</button><button class="btn danger small" onclick="deleteProfile()">Delete</button><span id="pf-msg" class="muted small"></span></div>
   </div>
-  <div class="card"><h2 style="margin-top:0">Share with the team</h2><p class="muted small">Tests and profiles live in this folder, a copy of the team repository. Get what others added, or send yours. Put your tests in a set named after you or the topic (<code>anderson_shopping</code>) so files never collide.</p>
-    <div id="share-status" class="muted small" style="margin:6px 0"></div>
-    <div class="row"><button class="btn" onclick="sharePull()">Get updates</button><input type="text" id="share-who" placeholder="your name" style="width:160px"><input type="text" id="share-msg" placeholder="what you added" style="width:260px"><button class="btn primary" onclick="sharePush()">Share my changes</button><span id="share-result" class="muted small"></span></div></div>
+
   <div class="card"><h2 style="margin-top:0">Settings file</h2><div class="kv" id="set-config"></div></div>
 </section>
 </main>
@@ -469,7 +467,6 @@ async function renderSettings() {
   $("pf-pick").innerHTML = PROFILES.map(p => `<option value="${esc(p.id)}" ${p.id === me() ? "selected" : ""}>${esc(p.name)} (${esc(p.id)})</option>`).join("");
   editProfile(me());
   $("set-config").innerHTML = Object.entries(STATE.config).map(([k, v]) => `<div>${esc(k)}</div><div><code>${esc(v)}</code></div>`).join("");
-  renderShare();
   if (!myProfile().email) { $("p-email").scrollIntoView({behavior: "smooth", block: "center"}); $("p-email").focus(); }
 }
 function factsForm(facts) {
@@ -509,13 +506,6 @@ async function startChrome() {
   try { const r = await api("/api/chrome/start", {profile_directory: dir}); $("set-chrome-msg").textContent = (r.log || []).slice(-1)[0] || "started"; STATE = await api("/api/state"); if (!$("page-home").hidden) renderHome(); if (!$("page-run").hidden) renderRunForm(); }
   catch (e) { $("set-chrome-msg").textContent = e.message; if ($("home-chrome-btn")) $("home-chrome-btn").textContent = "Start my Chrome"; }
 }
-async function renderShare() {
-  if (!$("share-who").value) $("share-who").value = store.get("by", "");
-  try { const st = await api("/api/sync"); $("share-status").innerHTML = st.error ? `<span class="bad">${esc(st.error)}</span>` : `changed here: ${st.changed.length ? st.changed.map(f => `<code>${esc(f)}</code>`).join(", ") : "nothing"} · ${st.behind ? `<span class="warn">${st.behind} update(s) from others waiting</span>` : "up to date with the team"}${st.ahead ? ` · ${st.ahead} of yours not yet shared` : ""}`; }
-  catch (e) { $("share-status").textContent = e.message; }
-}
-async function sharePull() { $("share-result").textContent = "getting updates…"; try { const r = await api("/api/sync/pull", {}); $("share-result").textContent = r.result; await loadTests(); await loadProfiles(); renderShare(); } catch (e) { $("share-result").textContent = e.message; } }
-async function sharePush() { const who = $("share-who").value.trim(); if (!who) { $("share-result").textContent = "put your name in"; return; } store.set("by", who); $("share-result").textContent = "sharing…"; try { const r = await api("/api/sync/push", {who, message: $("share-msg").value}); $("share-result").textContent = r.result; renderShare(); } catch (e) { $("share-result").textContent = e.message; } }
 boot();
 </script>
 </body>

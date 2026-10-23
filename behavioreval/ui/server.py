@@ -19,7 +19,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from behavioreval.core import config as config_mod, ledger, openrouter, profile as profile_mod, scenario, sync
+from behavioreval.core import config as config_mod, ledger, openrouter, profile as profile_mod, scenario
 from behavioreval.core.live import LiveChat
 from behavioreval.core.config import ROOT, Config
 
@@ -347,8 +347,6 @@ def make_handler(state: State):
                     return self._send(200, state.conversation(self._safe(q.get("run", "")), self._safe(q.get("file", ""))))
                 if path == "/api/live":
                     return self._send(200, state.live_state())
-                if path == "/api/sync":
-                    return self._send(200, sync.status(fetch=q.get("fetch", "1") != "0"))
                 if path == "/api/log":
                     log = state.logs_dir() / f"{self._safe(q.get('tag', ''))}.log"
                     text = log.read_text(encoding="utf-8", errors="replace")[-int(q.get("chars", 20000)):] if log.exists() else "(no log yet)"
@@ -390,10 +388,6 @@ def make_handler(state: State):
                     return self._send(200, state.live_start(req))
                 if path == "/api/live/act":
                     return self._send(200, state.live_act(req))
-                if path == "/api/sync/pull":
-                    return self._send(200, {"result": sync.pull()})
-                if path == "/api/sync/push":
-                    return self._send(200, {"result": sync.push(str(req.get("who") or ""), str(req.get("message") or ""))})
                 if path == "/api/chrome/start":
                     return self._send(200, state.chrome_start(str(req.get("profile_directory") or "")))
                 if path == "/api/runs/stop":

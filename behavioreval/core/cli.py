@@ -73,10 +73,6 @@ def build_parser() -> argparse.ArgumentParser:
     ch.add_argument("--list", action="store_true", help="only list the Chrome profiles found")
     _add_config_flags(ch)
     sub.add_parser("check", help="is everything in place to run on dev?")
-    sy = sub.add_parser("sync", help="share scenarios/profiles with the team: status | pull (others' additions) | push (yours)")
-    sy.add_argument("what", choices=("status", "pull", "push"))
-    sy.add_argument("--who", default="", help="your name on the shared change")
-    sy.add_argument("-m", "--message", default="", help="one line on what you added")
     sub.add_parser("config", help="the effective settings and where each came from")
     rs = sub.add_parser("rescore", help="re-judge the saved conversations of a run directory")
     rs.add_argument("run_dir")
@@ -366,16 +362,6 @@ def cmd_accounts(args) -> int:
     return 0
 
 
-def cmd_sync(args) -> int:
-    from behavioreval.core import sync
-    if args.what == "status":
-        st = sync.status()
-        print(f"{st['branch']} ← {st['remote'] or 'no remote'}; changed here: {', '.join(st['changed']) or 'nothing'}; ahead {st['ahead']}, behind {st['behind']}" + (f"; error: {st['error']}" if st["error"] else ""))
-        return 0
-    print(sync.pull() if args.what == "pull" else sync.push(args.who, args.message))
-    return 0
-
-
 def cmd_chrome(args) -> int:
     from behavioreval.browser import chrome
     cfg = config.load(overrides=_overrides(args))
@@ -528,7 +514,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         return {"ui": cmd_ui, "run": cmd_run, "lint": cmd_lint, "scenarios": cmd_scenarios, "profiles": cmd_profiles, "simulate": cmd_simulate,
-                "accounts": cmd_accounts, "chrome": cmd_chrome, "check": cmd_check, "sync": cmd_sync, "config": cmd_config, "rescore": cmd_rescore, "audit": cmd_audit}[args.cmd](args)
+                "accounts": cmd_accounts, "chrome": cmd_chrome, "check": cmd_check, "config": cmd_config, "rescore": cmd_rescore, "audit": cmd_audit}[args.cmd](args)
     except ValueError as exc:
         print(f"error: {exc}")
         return 2
