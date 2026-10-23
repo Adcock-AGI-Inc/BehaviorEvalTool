@@ -42,7 +42,7 @@ class ConfigTests(unittest.TestCase):
 
     def test_the_checked_in_config_and_default_profile_load(self):
         cfg = config.load(environ={})
-        self.assertEqual((cfg.max_turns, cfg.endpoint, cfg.profile), (5, "chrome", "default"))
+        self.assertEqual((cfg.max_turns, cfg.endpoint, cfg.profile), (10, "chrome", "default"))
         self.assertEqual([c["id"] for c in cfg.columns][:1], ["default"])
         self.assertEqual(config.load(None, {"BEHAVIOREVAL_COLUMNS": "default, slot7"}).columns[1], {"id": "slot7", "label": "slot7"})
         u = profile_mod.load(cfg.profiles_dir, "default")

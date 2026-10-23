@@ -292,7 +292,6 @@ function copyText(id, btn) { const t = $(id).textContent; const done = () => { b
 // ── tests ─────────────────────────────────────────────────────────────────
 async function loadTests() { TESTS = await api("/api/scenarios?profile=" + encodeURIComponent(me())); }
 function kind(t) { return (t.tags || []).includes("preset") ? "preset" : (t.tags || []).includes("open") ? "open" : ""; }
-const KIND_LABEL = {open: "short ask", preset: "detailed ask"};
 function kindPill(t) { return ""; }
 function titleOf(t) { const slug = (t.id || "").split("/").pop().replace(/^\d+_/, "").replace(/^(open|preset)_/, ""); return slug.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase()); }
 function renderTests() {
