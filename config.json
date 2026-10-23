@@ -33,15 +33,31 @@
   "columns": [
     {
       "id": "default",
-      "label": "Product default model (what users get today)"
+      "label": "default — the product's model today (Sonnet 5.5)"
     },
     {
-      "id": "claude-opus-5-5",
-      "label": "Claude Opus 5.5 (catalog model override)"
+      "id": "slot1",
+      "label": "lane slot1 (self-hosted model)"
     },
     {
-      "id": "slot20",
-      "label": "Lane slot20 (self-hosted text-only model)"
+      "id": "slot2",
+      "label": "lane slot2 (self-hosted model)"
+    },
+    {
+      "id": "slot3",
+      "label": "lane slot3 (self-hosted model)"
+    },
+    {
+      "id": "slot4",
+      "label": "lane slot4 (self-hosted model)"
+    },
+    {
+      "id": "slot5",
+      "label": "lane slot5 (self-hosted model)"
+    },
+    {
+      "id": "slot6",
+      "label": "lane slot6 (self-hosted model)"
     }
   ],
   "scenarios_dir": "scenarios",
