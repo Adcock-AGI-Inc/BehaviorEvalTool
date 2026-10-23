@@ -108,7 +108,7 @@
   <div class="row" style="justify-content:space-between"><div><h1>Tests</h1><p class="sub">Tick the cards to run. Click a card to read or change it.</p></div>
     <div class="row"><input type="text" id="tests-search" placeholder="search…" oninput="renderTests()" style="width:220px"><button class="btn primary" onclick="newTest()">+ Add a card</button></div></div>
   <div class="bar" id="bar">
-    <div><div class="lbl">models to test</div><div class="chips" id="bar-cols" style="margin-top:6px"></div><input type="text" id="bar-cols-extra" placeholder="other slots, e.g. slot7, slot20" style="margin-top:6px; width:240px" oninput="$('run-cols-extra').value = this.value; renderBar()"></div>
+    <div><div class="lbl">models to test</div><div class="chips" id="bar-cols" style="margin-top:6px" title="blue = selected; click to turn on or off"></div><input type="text" id="bar-cols-extra" placeholder="other slots, e.g. slot7, slot20" style="margin-top:6px; width:240px" oninput="$('run-cols-extra').value = this.value; renderBar()"></div>
     <div><div class="lbl">selected</div><div id="bar-count" style="margin-top:8px; font-weight:600"></div></div>
     <div><div class="lbl">repeats</div><input type="number" id="bar-runs" value="1" min="1" max="10" style="width:70px; margin-top:4px" onchange="renderBar()"></div>
     <span style="flex:1"></span>
@@ -314,7 +314,7 @@ function renderBar() {
   colChips($("bar-cols"));
   const reps = +$("bar-runs").value || 1;
   const nCols = chosenColumns().length;
-  $("bar-plan").textContent = SEL.size && nCols ? `${SEL.size} × ${nCols} model(s) × ${reps} = ${SEL.size * nCols * reps} conversation(s)` : "tick cards and a model";
+  $("bar-plan").textContent = SEL.size && nCols ? `will run: ${chosenColumns().join(", ")} · ${SEL.size} card(s) × ${nCols} × ${reps} = ${SEL.size * nCols * reps} conversation(s)` : "tick cards and a model (blue = selected; click a chip to turn it off)";
   const chromeDown = onChrome() && !(STATE.chrome || {}).up;
   $("bar-start").disabled = !SEL.size || !nCols;
   $("bar-start").textContent = chromeDown ? "Start my Chrome first" : "Start";
