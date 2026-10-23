@@ -21,8 +21,8 @@ You need four things:
 | | What | How |
 |---|---|---|
 | 1 | Python 3.10+ | macOS has it. Check: `python3 --version` |
-| 2 | Chrome signed in to dev | open https://dev.hark.com in Chrome with your own account |
-| 3 | `cloudflared` signed in to the trajectory viewer | `brew install cloudflared` (needs Homebrew: https://brew.sh), then once: `cloudflared access login https://trajectory.tools.hark.com` (a browser window asks you to sign in; use the same Google account as dev). The tool reads from the viewer when a run ended and which tools it used. |
+| 2 | Chrome signed in to dev | open https://dev.hark.com in Chrome with the account you test on. If you test on a separate dev account (for example `anderson1@hark.com`), sign in to dev as that account in a Chrome profile of its own. |
+| 3 | `cloudflared` signed in to the trajectory viewer | `brew install cloudflared` (needs Homebrew: https://brew.sh), then once: `cloudflared access login https://trajectory.tools.hark.com` (a browser window asks you to sign in with your company Google account). The tool reads from the viewer when a run ended and which tools it used. The viewer must record the dev account you test on: not every account is recorded (test accounts like `anderson1@hark.com` are; some personal ones are not). |
 | 4 | An OpenRouter key | https://openrouter.ai/keys — the simulated user and the judge run there; a batch of 16 tests costs well under a dollar |
 
 Then:
@@ -40,16 +40,21 @@ Leave that terminal open while you use the tool. `.env` never leaves your machin
 
 **Home** shows a "Get ready" checklist. Do the red steps in order; each has one button:
 
-1. **Set up my profile** → on the Set up page, under *Your account*: **your dev account email** and **the Chrome profile that is
-   signed in to dev** (the list shows the email next to each). Save. "About me" is optional: one paragraph the simulated user
+1. **Set up my profile** → on the Set up page, under *Your account*: **the dev account email you test on** (the account the
+   conversations will run on, e.g. `anderson1@hark.com`, not necessarily the account you signed in to the viewer with) and **the Chrome
+   profile that is signed in to dev as that account** (the list shows the email next to each). Save. The tool uses this email to find
+   your runs in the viewer, so it has to be exact. "About me" is optional: one paragraph the simulated user
    answers from when asked about you (where you live, your car…); empty, it answers plausibly.
 2. **Start my Chrome** → the tool copies that Chrome profile and opens a second Chrome window from it. Leave that window alone while
    tests run; you can watch the conversations in it. Your everyday Chrome keeps running.
 
 When all four rows are green, the "All set → pick tests" button lights up.
 
-Always run as yourself: the assistant's memory lives on the account. The banner on Home and Run tells you which account you
-are on and warns if your profile and your Chrome profile do not match.
+Always run as the same account: the assistant's memory lives on the account. The banner on Home and Run tells you which account
+you are on and warns if your profile and your Chrome profile do not match.
+
+Two accounts are involved and they may differ: the **dev account** the conversations run on (set in Set up, signed in in the copied
+Chrome profile) and the **viewer login** (`cloudflared access login`, your company Google account). The tool handles both cases.
 
 ## 3. Running tests
 
