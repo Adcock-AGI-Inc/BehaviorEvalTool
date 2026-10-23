@@ -81,8 +81,7 @@
   <button data-page="home" class="on">Home</button>
   <button data-page="settings"><span class="n">0</span> Set up</button>
   <button data-page="tests"><span class="n">1</span> Tests</button>
-  <button data-page="run"><span class="n">2</span> Run</button>
-  <button data-page="results"><span class="n">3</span> Results</button>
+  <button data-page="run"><span class="n">2</span> Run &amp; results</button>
   <div class="spacer"></div>
   <div class="me">I am<select id="me" onchange="switchProfile()"></select><div id="me-note"></div></div>
 </nav>
@@ -97,8 +96,7 @@
   <div id="home-account" class="card" style="margin:0 0 14px"></div>
   <div class="steps">
     <div class="step"><div class="k">Step 1</div><h3>Pick tests</h3><p class="muted">Tick the cards you want, or add your own: title, first message, task description, done-when, judge.</p><button class="btn" onclick="go('tests')">Go to tests</button></div>
-    <div class="step"><div class="k">Step 2</div><h3>Run</h3><p class="muted">Conversations run in tabs of your Chrome; you can watch them there.</p><button class="btn" onclick="go('run')">Go to run</button></div>
-    <div class="step"><div class="k">Step 3</div><h3>Review</h3><p class="muted">Read each conversation with its tool calls and the judge's reasons, give your verdict, export a CSV.</p><button class="btn" onclick="go('results')">Go to results</button></div>
+    <div class="step"><div class="k">Step 2</div><h3>Run &amp; review</h3><p class="muted">Conversations run in tabs of your Chrome. When a run finishes, open its results from the Runs table: the judge's reasons, your verdict, CSV.</p><button class="btn" onclick="go('run')">Go to run</button></div>
   </div>
   <h2>Recent runs</h2>
   <div id="home-runs" class="card muted">no runs yet</div>
@@ -144,11 +142,12 @@
   </div>
 
   <h2>Runs</h2>
+  <p class="muted small">Click a run's <b>results</b> button to review it; click the row for its log.</p>
   <div class="card"><table id="runs-table"><thead><tr><th>run</th><th>status</th><th>conversations</th><th>judge</th><th>reviewed</th><th></th></tr></thead><tbody></tbody></table><pre id="run-log" hidden></pre></div>
 </section>
 
 <section id="page-results" hidden>
-  <div class="row" style="justify-content:space-between"><div><h1>Results</h1><p class="sub" id="res-summary"></p></div>
+  <div class="row" style="justify-content:space-between"><div><h1><a href="#" onclick="go('run');return false" class="muted" style="text-decoration:none">Run</a> › Results</h1><p class="sub" id="res-summary"></p></div>
     <div class="row"><select id="res-run" onchange="loadRun()" style="width:auto"></select><select id="res-filter" onchange="renderRun()" style="width:auto"><option value="">all</option><option value="PASS">judge PASS</option><option value="FAIL">judge FAIL</option><option value="error">errors</option><option value="unreviewed">not yet reviewed</option></select><a id="res-export" class="btn" href="#" download>Export CSV</a></div></div>
   <div class="card"><div class="row" style="justify-content:space-between; margin-bottom:8px"><span id="res-progress-text" class="muted small"></span><button class="btn small" onclick="nextUnreviewed()">Next not reviewed →</button></div><div class="progress"><i id="res-progress" style="width:0"></i></div>
   <table id="res-table"><thead><tr><th>test</th><th>model</th><th>turns</th><th>stop</th><th>judge</th><th>score</th><th>flags</th><th>you</th><th></th></tr></thead><tbody></tbody></table></div>
@@ -222,7 +221,7 @@ const onChrome = () => STATE.endpoint === "chrome";
 
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => go(b.dataset.page));
 function go(page) {
-  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.page === page));
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.page === page || (page === "results" && b.dataset.page === "run")));
   document.querySelectorAll("main > section").forEach(s => s.hidden = s.id !== "page-" + page);
   if (page === "home") renderHome();
   if (page === "tests") renderTests();
