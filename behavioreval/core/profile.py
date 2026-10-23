@@ -29,14 +29,14 @@ class Profile:
 
     @property
     def name(self) -> str:
-        return str(self.facts.get("name") or self.id)
+        return str(self.facts.get("name") or ("me" if self.id == "default" else self.id))
 
     def has(self, key: str) -> bool:
         v = self.facts.get(key)
         return v is not None and str(v).strip() != ""
 
     def brief(self) -> str:
-        return "\n".join(f"- {k}: {v}" for k, v in self.facts.items() if v not in (None, ""))
+        return "\n".join(f"- {k}: {v}" for k, v in self.facts.items() if v not in (None, "") and not (k == "name" and str(v).lower() == "me"))
 
     def with_overrides(self, overrides: dict | None) -> "Profile":
         """This person with a scenario's ``user`` block laid over the facts (``style`` / ``limits`` keys override those too)."""
@@ -59,8 +59,6 @@ def from_dict(d: dict, where: str = "profile") -> Profile:
     if not ID.match(pid):
         raise ValueError(f"{where}: id must be lowercase letters, digits, - or _ (got {pid!r})")
     facts = d.get("facts") if isinstance(d.get("facts"), dict) else {}
-    if not str(facts.get("name") or "").strip():
-        raise ValueError(f"{where}: needs facts.name")
     profile = {k: str(v) for k, v in (d.get("profile") or {}).items() if v not in (None, "")}
     bad = sorted(set(profile) - set(PROFILE_FIELDS))
     if bad:
@@ -129,6 +127,4 @@ def lint(p: Profile, all_accounts: list[str], profiles: dict[str, Profile]) -> l
             problems.append(f"account {a} is not in accounts.tsv")
         if a in taken:
             problems.append(f"account {a} already belongs to profile {taken[a]!r}")
-    if not p.has("home"):
-        problems.append("facts.home is empty: most scenarios need it")
     return problems

@@ -46,19 +46,20 @@ def system_prompt(user: Profile, sc: Scenario, history: list[str], today: str) -
     beats = ("\nThe things you want, in order (bring up the next one only once the current one is settled; one at a time; the first is what your opening message asked for):\n"
              + "\n".join(f"{i}. {b}" for i, b in enumerate(sc.beats, 1)) + "\n") if sc.beats else ""
     past = ("\nWhat you already asked this assistant for, earlier:\n" + "\n".join(f"- {h}" for h in history) + "\n") if history else ""
+    brief = (f"\nAbout this task (your own notes; the assistant has not seen them):\n{sc.brief}\n") if sc.brief else ""
     return f"""You are role-playing a real person using a personal AI assistant app. Today is {today}; never claim a different date or weekday.
 You are the USER, never the assistant. You type messages into the app; the assistant replies.
 
 Who you are:
-{user.brief()}
+{user.brief() or '- the person whose account this is; when asked about yourself, answer briefly and stay consistent'}
 
 How you write to the assistant: {user.style or 'like an ordinary adult, short messages'}
 
 Things you never do in this chat:
 {limits}
-{past}
+{past}{brief}
 What is going on right now:
-{sc.situation or '(nothing special)'}
+{sc.situation or '(see your notes above)' if sc.brief else sc.situation or '(nothing special)'}
 
 What you want from the assistant:
 {sc.goal or sc.opening}
@@ -68,7 +69,7 @@ Facts you know but did NOT put in your first message:
 
 How you give those facts out: {sc.reveal}
 
-You consider the job done when: {sc.done_when or 'the assistant has given you what you asked for'}
+You consider the job done when: {sc.done_when or ('what your notes describe is settled' if sc.brief else 'the assistant has given you what you asked for')}
 
 Rules:
 - Stay in character and in your own style. One message per turn, usually one or two short sentences.

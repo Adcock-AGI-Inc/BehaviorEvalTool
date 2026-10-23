@@ -46,7 +46,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual([c["id"] for c in cfg.columns][:1], ["default"])
         self.assertEqual(config.load(None, {"BEHAVIOREVAL_COLUMNS": "default, slot7"}).columns[1], {"id": "slot7", "label": "slot7"})
         u = profile_mod.load(cfg.profiles_dir, "default")
-        self.assertTrue(u.has("home") and u.limits and u.style and u.id == "default")
+        self.assertTrue(u.limits and u.style and u.id == "default" and not u.facts)
 
     def test_column_specs(self):
         cfg = config.load(environ={})
@@ -71,8 +71,7 @@ class UserTests(unittest.TestCase):
         with self.assertRaises(ValueError) as cm:
             profile_mod.from_dict({"id": "x", "facts": {"name": "X"}, "profile": {"car": "y"}}, "t")
         self.assertIn("car", str(cm.exception))
-        with self.assertRaises(ValueError):
-            profile_mod.from_dict({"id": "x", "facts": {}}, "t")
+        self.assertEqual(profile_mod.from_dict({"id": "default", "facts": {}}, "t").name, "me")
 
 
 class ScenarioTests(unittest.TestCase):
@@ -94,7 +93,8 @@ class ScenarioTests(unittest.TestCase):
         bad = scenario.from_dict({**MECH, "goal": "near {office}"}, "t")
         self.assertIn("{office}", scenario.lint(bad, ALEX)[0])
         nodone = scenario.from_dict({**MECH, "done_when": ""}, "t")
-        self.assertTrue(any("done_when" in p for p in scenario.lint(nodone, ALEX)))
+        self.assertTrue(any("notes" in p for p in scenario.lint(nodone, ALEX)))
+        self.assertEqual(scenario.lint(scenario.from_dict({**MECH, "done_when": "", "brief": "I want a shop; done when one is named."}, "t"), ALEX), [])
         few = scenario.from_dict({**MECH, "beats": ["a", "b", "c"], "max_turns": 2}, "t")
         self.assertTrue(any("beats" in p for p in scenario.lint(few, ALEX)))
         runtime = scenario.from_dict({**MECH, "opening": "undo {prev_opening}"}, "t")

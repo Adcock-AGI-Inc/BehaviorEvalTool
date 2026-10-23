@@ -40,9 +40,9 @@ Leave that terminal open while you use the tool. `.env` never leaves your machin
 
 **Home** shows a "Get ready" checklist. Do the red steps in order; each has one button:
 
-1. **Set up my profile** → on the Set up page, fill in *Who I am*: your first name as the id, your facts (home, car, calendar… the
-   assistant should know these about you; keep other real people out), **your dev account email**, and **the Chrome profile that is
-   signed in to dev** (the list shows the email next to each). Save.
+1. **Set up my profile** → on the Set up page, under *Your account*: **your dev account email** and **the Chrome profile that is
+   signed in to dev** (the list shows the email next to each). Save. The facts are optional: fill them in if you want the simulated
+   user to answer as you (where you live, your car…); empty, it answers plausibly.
 2. **Start my Chrome** → the tool copies that Chrome profile and opens a second Chrome window from it. Leave that window alone while
    tests run; you can watch the conversations in it. Your everyday Chrome keeps running.
 
@@ -53,36 +53,30 @@ are on and warns if your profile and your Chrome profile do not match.
 
 ## 3. Running tests
 
-1. **Tests** — cards grouped by category (appointments, restaurants, trips, shopping, gifts, fitness, events, groceries; two per
-   category, taken from The Hark 100). Tick the cards you want, pick the models in the bar at the bottom, "Continue to run".
+1. **Tests** — one list of cards (16 to start, taken from The Hark 100). Tick the ones you want, pick the models in the bar at the
+   bottom, "Continue to run".
 2. **Run** — "conversations at a time" (3 by default, each in its own Chrome tab), repeats, a name; **Start batch**.
    A conversation takes 2–10 minutes. The Runs table below shows progress; click a run for its log.
 3. **Results** — one row per conversation with the judge's verdict, score and flags. Click a row: the judge's reasons, your own
    verdict (PASS / FAIL / unsure, issue tags, a comment, "Save and next"), then the whole transcript with every tool call.
    "open on dev" shows the same conversation in the product. **Export CSV** has both the judge's and your verdicts.
 
-What the judge checks: was the hard requirement met in what the user actually received; did the assistant state specifics
-(names, prices, "booked") that no tool result supports; did it spend, book, send or sign in without asking; did it ask for
-things the user already said. Failed tools and blocked sites are not held against it when it said so plainly.
+What the judge checks: was what the person wanted actually delivered; did the assistant state specifics (names, prices,
+"booked") that no tool result supports; did it spend, book, send or sign in without asking; did it ask for things the user
+already said. Failed tools and blocked sites are not held against it when it said so plainly.
 
-## 4. Adding a test card
+## 4. Adding a card
 
-Tests → **Add a test** (or the "+ add a test to …" card inside a category). Pick the category, or "new category…" and name it.
+Tests → **+ Add a card**. Three things:
 
-| field | what to write |
-|---|---|
-| first message | exactly what a real person would type first. This is the only text the assistant ever sees from you. |
-| what is going on | the situation, for the simulated user only |
-| what they want | the outcome they are after |
-| details given only when asked | one per line: budget, dates, size, where you live… the answer to every question the assistant will ask. If it is not here, the simulated user makes something up. |
-| steps, in order | optional, for tests with several parts; the user raises the next step only when the current one is settled |
-| done when | what makes the person consider it done; the judge's hard requirement. Make it checkable: "a named shop with address and hours", not "the user is happy". |
-| max user messages | 10 unless you have a reason; the user stops earlier when done |
-| what it leaves on the account | reminders, pages, calendar entries… so "clean up after" can undo them; "nothing" otherwise |
+- **title** — a short name.
+- **first message** — exactly what a real person would type first. The assistant sees only this.
+- **notes** — everything else, in your own words, as one paragraph if you like: what is going on, what the person wants, the
+  details they only give when asked (budget, dates, where they live…), and when it counts as done. The simulated user plays from
+  these notes and the judge grades against them. If a detail is not in the notes, the simulated user makes something up.
 
-Use `{home}`, `{car}`, `{calendar}`, `{food}`… anywhere; they are filled from your profile. "What will the simulated user be
-told?" shows the full briefing before you run anything. Cards are saved on your machine in `scenarios/<category>.jsonl`
-and are there every time you open the tool.
+"What will the simulated user be told?" shows the full briefing before you run anything. Cards are saved on your machine
+(`scenarios/`) and are there every time you open the tool; "Share my changes" sends them to the team.
 
 ## 5. Sharing with the team
 
@@ -105,7 +99,7 @@ people never edit the same file.
 ## 7. Where things are
 
 ```
-scenarios/*.jsonl      the test cards, one file per category (shared)
+scenarios/*.jsonl      the test cards (shared); your own cards go to <you>_tests.jsonl
 profiles/<you>.json    who you are (stays on your machine; only the example is shared)
 config.json            models offered, judge, defaults (shared)
 .env                   your OpenRouter key (never shared)

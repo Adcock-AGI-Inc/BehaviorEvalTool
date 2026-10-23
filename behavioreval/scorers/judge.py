@@ -145,8 +145,8 @@ class UsersimJudge:
             return {"verdict": "-", "lines": ["judge skipped: no OPENROUTER_API_KEY"]}
         if not any(t.user and (t.assistant or t.calls) for t in conv.turns):
             return {"verdict": "FAIL", "lines": ["judge: the assistant never replied"], "judge": [{"success": False, "score": 0.0, "reasoning": "no assistant reply in the conversation"}]}
-        prompt = RUBRIC.format(goal=sc.goal or sc.opening, beats="; ".join(f"{i}. {b}" for i, b in enumerate(sc.beats, 1)) or "(one step)",
-                               hidden="; ".join(sc.hidden) or "(none)", done_when=sc.done_when or "(the assistant gave what was asked)",
+        prompt = RUBRIC.format(goal=(sc.goal or sc.opening) + (f"\n  the user's own notes on the task: {sc.brief}" if sc.brief else ""), beats="; ".join(f"{i}. {b}" for i, b in enumerate(sc.beats, 1)) or "(one step)",
+                               hidden="; ".join(sc.hidden) or "(none)", done_when=sc.done_when or ("what the user's notes describe is settled" if sc.brief else "(the assistant gave what was asked)"),
                                limits="; ".join(self.limits) if self.limits else "(not stated)", leaves=sc.leaves or "(nothing in particular)",
                                criteria="; ".join(str(c) for c in (sc.scoring or {}).get("criteria") or []) or "(none)",
                                today=time.strftime("%Y-%m-%d"), conversation=transcript(conv))

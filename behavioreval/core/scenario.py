@@ -17,7 +17,9 @@ DEFAULT_REVEAL = "only when the assistant asks, or when it clearly cannot procee
 RUNTIME_PREFIX = "prev_"   # placeholders the harness fills at run time (cleanup scenarios)
 
 FIELD_HELP = {   # what each field means, for the UI form and the README
-    "id": "unique name, <set>/<number>_<slug>, e.g. local/03_dry_cleaner",
+    "id": "unique name, <set>/<number>_<slug>, e.g. tests/03_dry_cleaner",
+    "title": "a short name for the card",
+    "brief": "free text for the simulated user and the judge: what is going on, what the person wants, details they give only when asked, when it counts as done",
     "opening": "the first message, sent to the assistant exactly as written",
     "situation": "what is going on in the person's life right now (the user model reads this, the assistant never does)",
     "goal": "what the person wants out of the conversation",
@@ -37,6 +39,8 @@ FIELD_HELP = {   # what each field means, for the UI form and the README
 class Scenario:
     id: str
     opening: str
+    title: str = ""
+    brief: str = ""
     situation: str = ""
     goal: str = ""
     hidden: list[str] = field(default_factory=list)
@@ -50,7 +54,7 @@ class Scenario:
     user: dict = field(default_factory=dict)      # fact overrides for this scenario
 
     def texts(self) -> list[str]:
-        out = [self.opening, self.situation, self.goal, self.done_when, self.reveal, *self.hidden, *self.beats]
+        out = [self.opening, self.brief, self.situation, self.goal, self.done_when, self.reveal, *self.hidden, *self.beats]
         if self.scoring:
             out.append(json.dumps(self.scoring, ensure_ascii=False))
         return out
@@ -60,7 +64,7 @@ class Scenario:
 
     def to_dict(self) -> dict:
         d = {"id": self.id, "opening": self.opening}
-        for k in ("situation", "goal", "hidden", "reveal", "done_when", "beats", "max_turns", "scoring", "tags", "leaves", "user"):
+        for k in ("title", "brief", "situation", "goal", "hidden", "reveal", "done_when", "beats", "max_turns", "scoring", "tags", "leaves", "user"):
             v = getattr(self, k)
             if v in (None, "", [], {}) or (k == "reveal" and v == DEFAULT_REVEAL):
                 continue
@@ -85,7 +89,7 @@ def from_dict(d: dict, where: str = "") -> Scenario:
     unknown = sorted(set(d) - set(FIELD_HELP) - {"persona", "requires", "real"})   # the last three: accepted and ignored (older files)
     if unknown:
         raise ValueError(f"{where}: {sid}: unknown field(s) {', '.join(unknown)}")
-    return Scenario(id=sid, opening=str(d["opening"]).strip(), situation=str(d.get("situation") or ""),
+    return Scenario(id=sid, opening=str(d["opening"]).strip(), title=str(d.get("title") or ""), brief=str(d.get("brief") or "").strip(), situation=str(d.get("situation") or ""),
                     goal=str(d.get("goal") or ""), hidden=[str(x) for x in d.get("hidden") or []],
                     reveal=str(d.get("reveal") or DEFAULT_REVEAL), done_when=str(d.get("done_when") or ""), beats=[str(x) for x in d.get("beats") or []],
                     max_turns=turns, scoring=d.get("scoring") if isinstance(d.get("scoring"), dict) else {}, tags=[str(x) for x in d.get("tags") or []],
@@ -133,7 +137,7 @@ def resolve(spec: str, only: list[str] | None = None, directory: Path | None = N
     """``spec`` is a path, a file stem under the scenarios dir, or ``all``; ``only`` keeps ids."""
     scs: list[Scenario] = []
     path = Path(spec).expanduser()
-    if path.exists():
+    if path.is_file():
         scs = load_file(path)
     elif directory is not None and spec == "all":
         for stem in sets(directory):
@@ -209,7 +213,7 @@ def render(sc: Scenario, user: Profile) -> Scenario:
     facts = profile_for(sc, user).facts
     r = lambda t: render_text(t, facts)   # noqa: E731
     scoring = json.loads(render_text(json.dumps(sc.scoring, ensure_ascii=False), facts)) if sc.scoring else {}
-    return Scenario(id=sc.id, opening=r(sc.opening), situation=r(sc.situation), goal=r(sc.goal), hidden=[r(h) for h in sc.hidden],
+    return Scenario(id=sc.id, opening=r(sc.opening), title=sc.title, brief=r(sc.brief), situation=r(sc.situation), goal=r(sc.goal), hidden=[r(h) for h in sc.hidden],
                     reveal=r(sc.reveal), done_when=r(sc.done_when), beats=[r(b) for b in sc.beats], max_turns=sc.max_turns, scoring=scoring,
                     tags=sc.tags, leaves=sc.leaves, user=sc.user)
 
@@ -221,8 +225,8 @@ def lint(sc: Scenario, user: Profile) -> list[str]:
     unknown = sorted(p for p in sc.placeholders() if not u.has(p) and not p.startswith(RUNTIME_PREFIX))
     if unknown:
         problems.append("placeholder(s) with no fact in the profile or the scenario's user block: " + ", ".join("{" + p + "}" for p in unknown))
-    if not sc.done_when:
-        problems.append("done_when is empty: the judge has no hard requirement and the user model does not know when to stop")
+    if not sc.done_when and not sc.brief:
+        problems.append("the notes are empty: the simulated user does not know what it wants or when it is done")
     if sc.max_turns is not None and sc.beats and sc.max_turns < len(sc.beats):
         problems.append(f"max_turns {sc.max_turns} is smaller than the number of beats ({len(sc.beats)})")
     return problems
