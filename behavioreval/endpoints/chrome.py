@@ -96,9 +96,20 @@ class ChromeEndpoint:
             self.tab.navigate(f"{self.web}/project/{self.conv}")
         except Exception:
             pass
-        self.seen = {r.get("id") for r in self.rows() if r.get("id")}
         label, model, provider = column(self.cfg)
         self.note = f"model={model}" + (f" modelProvider={provider}" if provider else "") + " on every message" if model else "the product's default model"
+        if self.cfg.lane:
+            # Step 1 for a lane: the /model slash command, the same switch a person types (the worker handles it before
+            # the agent loop; the account needs the clear_command_allowlist flag). Its reply is not stored on the page
+            # and it starts no run, so it is not counted. The per-message override below is sent as well.
+            cmd = f"/model hark-{self.cfg.lane}"
+            status, data = self.api("POST", "/api/messages/send", {"conversationId": self.conv, "message": cmd, "idempotencyKey": str(uuid.uuid4())})
+            if status != 200:
+                raise RuntimeError(f"{cmd} was refused: HTTP {status}: {str(data)[:160]}")
+            self.out(f"  sent {cmd}")
+            self.note = f"sent {cmd}; " + self.note
+            time.sleep(3)
+        self.seen = {r.get("id") for r in self.rows() if r.get("id")}
         return self.conv
 
     def turn(self, text: str, timeout_s: float) -> AssistantTurn:

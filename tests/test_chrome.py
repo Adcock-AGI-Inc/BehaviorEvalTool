@@ -64,6 +64,8 @@ class FakeTab:
         if "/api/messages/send" in expr:
             body = json.loads(json.loads(expr.split("body: ")[1].split("}); const t")[0]))
             self.sent.append(body)
+            if str(body.get("message", "")).startswith("/model"):   # a slash command: no stored reply, no run
+                return {"status": 200, "json": {}}
             self.rows.append({"id": f"a{len(self.sent)}", "role": "assistant", "source": "send_bubble", "content": [{"text": f"reply {len(self.sent)}"}]})
             return {"status": 200, "json": {}}
         if "/api/messages/page" in expr:
@@ -97,16 +99,19 @@ class ChromeEndpointTests(unittest.TestCase):
         viewer.wait_for_runs = lambda *a, **k: runs
         viewer.settled = lambda *a, **k: runs
         viewer.rollouts = lambda *a, **k: [{"lanes": [{"messages": [{"part": "run", "content": [{"type": "tool_use", "name": "web_search", "input": {}}]}]}]}]
+        import behavioreval.endpoints.chrome as C
+        C.time.sleep = lambda s: None
         conv = ep.open("me@hark.com", "slot20", "t", {"name": "x"})
         self.assertEqual(conv, "conv-1")
+        self.assertEqual(tab.sent[0]["message"], "/model hark-slot20")   # step 1 on a lane: the slash command
         self.assertIn("https://dev.hark.com/project/conv-1", tab.urls)
         t = ep.turn("find me a mechanic", 60)
-        self.assertEqual(tab.sent[0]["model"], "agent-llm")
-        self.assertEqual(tab.sent[0]["modelProvider"], "hark-slot20")
-        self.assertEqual((t.reply, t.reason, t.calls[0]["name"], t.duration_s), ("reply 1", "end_turn", "web_search", 12.0))
+        self.assertEqual(tab.sent[1]["model"], "agent-llm")
+        self.assertEqual(tab.sent[1]["modelProvider"], "hark-slot20")
+        self.assertEqual((t.reply, t.reason, t.calls[0]["name"], t.duration_s), ("reply 2", "end_turn", "web_search", 12.0))
         self.assertIn("served by hark-slot20", t.note)
         t2 = ep.turn("sunnyvale", 60)
-        self.assertEqual((t2.reply, t2.note), ("reply 2", ""))   # only the new row, no note after the first turn
+        self.assertEqual((t2.reply, t2.note), ("reply 3", ""))   # only the new row, no note after the first turn
         self.assertEqual(ep.sent, 2)
         self.assertTrue(delivered({"role": "assistant", "source": "send_bubble", "content": "hi"}))
         self.assertFalse(delivered({"role": "assistant", "source": "tool", "content": "hi"}))
