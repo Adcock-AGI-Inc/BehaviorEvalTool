@@ -41,8 +41,8 @@ Leave that terminal open while you use the tool. `.env` never leaves your machin
 **Home** shows a "Get ready" checklist. Do the red steps in order; each has one button:
 
 1. **Set up my profile** → on the Set up page, under *Your account*: **your dev account email** and **the Chrome profile that is
-   signed in to dev** (the list shows the email next to each). Save. The facts are optional: fill them in if you want the simulated
-   user to answer as you (where you live, your car…); empty, it answers plausibly.
+   signed in to dev** (the list shows the email next to each). Save. "About me" is optional: one paragraph the simulated user
+   answers from when asked about you (where you live, your car…); empty, it answers plausibly.
 2. **Start my Chrome** → the tool copies that Chrome profile and opens a second Chrome window from it. Leave that window alone while
    tests run; you can watch the conversations in it. Your everyday Chrome keeps running.
 
@@ -67,13 +67,14 @@ already said. Failed tools and blocked sites are not held against it when it sai
 
 ## 4. Adding a card
 
-Tests → **+ Add a card**. Three things:
+Tests → **+ Add a card**:
 
 - **title** — a short name.
 - **first message** — exactly what a real person would type first. The assistant sees only this.
-- **notes** — everything else, in your own words, as one paragraph if you like: what is going on, what the person wants, the
-  details they only give when asked (budget, dates, where they live…), and when it counts as done. The simulated user plays from
-  these notes and the judge grades against them. If a detail is not in the notes, the simulated user makes something up.
+- **1 · task description** — the background: what is going on, what the person wants, the details they only give when asked
+  (budget, dates, where they live…). The simulated user plays from this. If a detail is not here, it makes something up.
+- **2 · done when** — when the simulated user considers it finished and stops.
+- **3 · judge** — optional. Empty means the judge grades against "done when"; add anything else it should check.
 
 "What will the simulated user be told?" shows the full briefing before you run anything. Cards are saved on your machine
 (`scenarios/`) and are there every time you open the tool; "Share my changes" sends them to the team.

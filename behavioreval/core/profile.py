@@ -36,6 +36,8 @@ class Profile:
         return v is not None and str(v).strip() != ""
 
     def brief(self) -> str:
+        if self.facts.get("about") and len([k for k, v in self.facts.items() if v]) == 1:
+            return str(self.facts["about"]).strip()
         return "\n".join(f"- {k}: {v}" for k, v in self.facts.items() if v not in (None, "") and not (k == "name" and str(v).lower() == "me"))
 
     def with_overrides(self, overrides: dict | None) -> "Profile":

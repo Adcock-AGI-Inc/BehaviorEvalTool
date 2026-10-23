@@ -96,7 +96,7 @@
     <div class="row" style="margin-top:12px"><button class="btn primary" id="home-go" onclick="go('tests')" disabled>All set → pick tests</button><span class="muted small" id="home-go-note"></span></div></div>
   <div id="home-account" class="card" style="margin:0 0 14px"></div>
   <div class="steps">
-    <div class="step"><div class="k">Step 1</div><h3>Pick tests</h3><p class="muted">Tick the cards you want, or add your own: a title, the first message, and notes in your own words.</p><button class="btn" onclick="go('tests')">Go to tests</button></div>
+    <div class="step"><div class="k">Step 1</div><h3>Pick tests</h3><p class="muted">Tick the cards you want, or add your own: title, first message, task description, done-when, judge.</p><button class="btn" onclick="go('tests')">Go to tests</button></div>
     <div class="step"><div class="k">Step 2</div><h3>Run</h3><p class="muted">Conversations run in tabs of your Chrome; you can watch them there.</p><button class="btn" onclick="go('run')">Go to run</button></div>
     <div class="step"><div class="k">Step 3</div><h3>Review</h3><p class="muted">Read each conversation with its tool calls and the judge's reasons, give your verdict, export a CSV.</p><button class="btn" onclick="go('results')">Go to results</button></div>
   </div>
@@ -165,11 +165,14 @@
   <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Your account</h2><div class="row"><select id="pf-pick" onchange="editProfile(this.value)" style="width:auto"></select><button class="btn small" onclick="newProfile()">+ New</button></div></div>
     <p class="muted small">Your dev account email and the Chrome profile signed in to it are what matter. The facts are optional: fill them in if you want the simulated user to answer as you (where you live, your car…); leave them empty and it answers plausibly. Keep real third parties out.</p>
     <div class="grid2">
-      <div><label>id (lowercase, your first name)</label><input type="text" id="p-id"><div id="p-facts"></div><label>other facts (JSON, optional)</label><textarea id="p-extra" placeholder='{"pets": "a corgi named Bo"}'></textarea></div>
-      <div><label>how this person types</label><input type="text" id="p-style" placeholder="short, casual; one thing at a time"><label>things they never do in the chat (one per line)</label><textarea id="p-limits"></textarea>
-        <label>profile page the assistant should know (JSON; fields: <span id="p-fields-help"></span>)</label><textarea id="p-profile"></textarea>
+      <div><label>id (lowercase, your first name)</label><input type="text" id="p-id">
         <label>my dev account email</label><input type="text" id="p-email" placeholder="you@hark.com"><label>my Chrome profile signed in to dev</label><select id="p-chrome"></select>
         <div id="p-accounts-wrap" hidden><label>test accounts (eval_system endpoint only)</label><div id="p-accounts"></div></div></div>
+      <div><label>about me — one paragraph the simulated user answers from when the assistant asks about you (where you live, your car, household, schedule, preferences…). Optional.</label>
+        <textarea id="p-about" style="min-height:140px" placeholder="I live in Sunnyvale, drive a 2019 Civic, work Tue–Thu in the office. Partner Sam, cat Miso. Like Thai and ramen, no shellfish. Gym Mon and Wed evenings."></textarea>
+        <details style="margin-top:8px"><summary>more (how I type, what I never do)</summary>
+          <label>how this person types</label><input type="text" id="p-style" placeholder="short, casual; one thing at a time"><label>things they never do in the chat (one per line)</label><textarea id="p-limits"></textarea>
+          <input type="hidden" id="p-profile"><span id="p-fields-help" hidden></span></details></div>
     </div>
     <div class="row" style="margin-top:10px"><button class="btn primary" onclick="saveProfile()">Save profile</button><button class="btn danger small" onclick="deleteProfile()">Delete</button><span id="pf-msg" class="muted small"></span></div>
   </div>
@@ -189,8 +192,12 @@
   <div id="d-edit" hidden style="margin-top:12px">
     <label>title</label><input type="text" id="f-title" placeholder="Laptop for work">
     <label>first message — what the person types first; the assistant sees only this</label><textarea id="f-opening" placeholder="I need to buy a new laptop for work. Can you recommend some options?"></textarea>
-    <label>notes — everything else, in your own words: what is going on, what the person wants, the details they only give when asked (budget, dates, where they live…), and when it counts as done. Paste a whole paragraph.</label>
-    <textarea id="f-brief" style="min-height:160px" placeholder="I want three options under $1,500, Mac preferred, 14 inch or smaller. I say the budget only when asked. No buying. Done when I have three specific models with prices."></textarea>
+    <label>1 · task description — the background: what is going on, what the person wants, the details they only give when asked (budget, dates, where they live…)</label>
+    <textarea id="f-brief" style="min-height:120px" placeholder="I need a laptop for work: mostly spreadsheets, video calls and travel. Budget up to $1,500, Mac preferred, 14 inch or smaller — I say these only when asked. No buying."></textarea>
+    <label>2 · done when — when the simulated user considers it finished and stops</label>
+    <textarea id="f-done_when" placeholder="I have three specific current models with prices and a one-line reason each."></textarea>
+    <label>3 · judge — optional; empty = the judge uses "done when". Add anything else it should check.</label>
+    <textarea id="f-criteria" placeholder="Fail if it recommends a 16-inch model or offers to buy without asking."></textarea>
     <div class="grid2"><div><label>max user messages (stops earlier when done)</label><input type="number" id="f-max_turns" min="1" max="30" value="10"></div>
       <div><label>what it leaves on the account (for cleanup), or "nothing"</label><input type="text" id="f-leaves" value="nothing"></div></div>
     <input type="hidden" id="f-id"><input type="hidden" id="f-set">
@@ -291,7 +298,6 @@ function notesOf(t) {
   if (t.goal) parts.push("What I want: " + t.goal);
   if ((t.hidden || []).length) parts.push("Details I give only when asked: " + t.hidden.join("; "));
   if ((t.beats || []).length) parts.push("In order: " + t.beats.join("; then "));
-  if (t.done_when) parts.push("Done when: " + t.done_when);
   return parts.join("\n");
 }
 function mySet() { const m = (me() || "default").replace(/[^a-z0-9_-]/g, ""); return m === "default" ? "tests" : m + "_tests"; }
@@ -328,7 +334,9 @@ function openTest(id) {
   const t = TESTS.find(x => x.id === id); CUR = {test: t};
   $("d-title").textContent = titleOf(t); $("d-conv").hidden = true; $("d-view").hidden = false; $("d-edit").hidden = true; $("d-edit-btn").hidden = false; $("d-edit-btn").textContent = "Edit";
   $("d-view").innerHTML = `<div class="turn user"><div class="who">first message, sent as written</div>${esc(t.opening)}</div>
-    <div class="muted small" style="margin:10px 0 4px">notes for the simulated user and the judge</div><div style="white-space:pre-wrap">${esc(notesOf(t) || "—")}</div>
+    <div class="muted small" style="margin:10px 0 4px">1 · task description</div><div style="white-space:pre-wrap">${esc(notesOf(t) || "—")}</div>
+    <div class="muted small" style="margin:10px 0 4px">2 · done when</div><div style="white-space:pre-wrap">${esc(t.done_when || "—")}</div>
+    <div class="muted small" style="margin:10px 0 4px">3 · judge</div><div style="white-space:pre-wrap">${esc(((t.scoring || {}).criteria || []).join("\n") || "same as done when")}</div>
     <div class="muted small" style="margin-top:10px">up to ${t.max_turns || STATE.config.max_turns} user messages · leaves: ${esc(t.leaves || "nothing")}</div>
     ${t.problems.length ? `<div class="bad" style="margin-top:8px">${esc(t.problems.join("; "))}</div>` : ""}
     <div class="row" style="margin-top:14px"><button class="btn primary" onclick="toggleSel('${esc(t.id)}', true); closeDrawer()">Select for the run</button></div>`;
@@ -339,7 +347,7 @@ function closeDrawer() { $("drawer").classList.remove("on"); $("scrim").classLis
 function toggleEdit() { const e = $("d-edit").hidden; $("d-edit").hidden = !e; $("d-view").hidden = e; $("d-edit-btn").textContent = e ? "View" : "Edit"; }
 function fillForm(t) {
   $("f-set").value = t.set || mySet(); $("f-id").value = t.id || ""; $("f-title").value = t.title || titleOf(t); $("f-opening").value = t.opening || "";
-  $("f-brief").value = notesOf(t); $("f-max_turns").value = t.max_turns || STATE.config.max_turns || 10; $("f-leaves").value = t.leaves || "nothing";
+  $("f-brief").value = notesOf(t); $("f-done_when").value = t.done_when || ""; $("f-criteria").value = ((t.scoring || {}).criteria || []).join("\n"); $("f-max_turns").value = t.max_turns || STATE.config.max_turns || 10; $("f-leaves").value = t.leaves || "nothing";
   $("f-msg").textContent = ""; $("f-preview").hidden = true;
 }
 function readForm() {
@@ -348,7 +356,8 @@ function readForm() {
   const set = $("f-set").value || mySet();
   let id = $("f-id").value.trim();
   if (!id) { const n = TESTS.filter(t => t.set === set).length + 1; id = `${set}/${String(n).padStart(2, "0")}_${slug}`; $("f-id").value = id; }
-  const s = {id, title, opening: $("f-opening").value.trim(), brief: $("f-brief").value.trim(), leaves: $("f-leaves").value.trim() || "nothing"};
+  const s = {id, title, opening: $("f-opening").value.trim(), brief: $("f-brief").value.trim(), done_when: $("f-done_when").value.trim(), leaves: $("f-leaves").value.trim() || "nothing"};
+  if ($("f-criteria").value.trim()) s.scoring = {criteria: [$("f-criteria").value.trim()]};
   if ($("f-max_turns").value) s.max_turns = parseInt($("f-max_turns").value, 10);
   const old = TESTS.find(t => t.id === id); if (old && old.tags) s.tags = old.tags;
   return s;
@@ -466,9 +475,8 @@ async function renderSettings() {
   if (!myProfile().email) { $("p-email").scrollIntoView({behavior: "smooth", block: "center"}); $("p-email").focus(); }
 }
 function factsForm(facts) {
-  const keys = STATE.suggested_facts || [];
-  $("p-facts").innerHTML = keys.map(k => `<label>${esc(k)}${["name", "home"].includes(k) ? " *" : ""}</label>${["calendar", "household", "routine"].includes(k) ? `<textarea data-fact="${k}">${esc(facts[k] || "")}</textarea>` : `<input type="text" data-fact="${k}" value="${esc(facts[k] || "")}">`}`).join("");
-  const extra = Object.fromEntries(Object.entries(facts).filter(([k]) => !keys.includes(k))); $("p-extra").value = Object.keys(extra).length ? JSON.stringify(extra) : "";
+  const about = facts.about || Object.entries(facts).filter(([k, v]) => v && k !== "about").map(([k, v]) => `${k}: ${v}`).join("; ");
+  $("p-about").value = about || "";
 }
 function pickers(p) {
   $("p-fields-help").textContent = (STATE.profile_fields || []).join(", ");
@@ -479,7 +487,7 @@ function pickers(p) {
 }
 function editProfile(id) {
   const p = PROFILES.find(x => x.id === id); if (!p) return;
-  $("p-id").value = p.id; factsForm(p.facts); $("p-style").value = p.style; $("p-limits").value = p.limits.join("\n"); $("p-profile").value = JSON.stringify(p.profile); $("p-email").value = p.email || ""; pickers(p); $("pf-msg").textContent = (p.problems || []).join("; ");
+  $("p-id").value = p.id; factsForm(p.facts); $("p-style").value = p.style; $("p-limits").value = p.limits.join("\n"); $("p-profile").value = JSON.stringify(p.profile || {}); $("p-email").value = p.email || ""; pickers(p); $("pf-msg").textContent = (p.problems || []).join("; ");
 }
 function newProfile() {
   const d = PROFILES.find(p => p.id === "default") || {limits: []};
@@ -488,8 +496,7 @@ function newProfile() {
 }
 async function saveProfile() {
   try {
-    const facts = {}; document.querySelectorAll("#p-facts [data-fact]").forEach(el => { if (el.value.trim()) facts[el.dataset.fact] = el.value.trim(); });
-    if ($("p-extra").value.trim()) Object.assign(facts, JSON.parse($("p-extra").value));
+    const facts = {}; if ($("p-about").value.trim()) facts.about = $("p-about").value.trim();
     const body = {id: $("p-id").value.trim(), facts, style: $("p-style").value.trim(), limits: $("p-limits").value.split("\n").map(x => x.trim()).filter(Boolean),
                   profile: $("p-profile").value.trim() ? JSON.parse($("p-profile").value) : {}, accounts: [...document.querySelectorAll(".p-acct:checked")].map(c => c.value), email: $("p-email").value.trim(), chrome_profile: $("p-chrome").value};
     const r = await api("/api/profiles", body);
