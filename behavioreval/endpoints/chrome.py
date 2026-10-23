@@ -150,8 +150,8 @@ class ChromeEndpoint:
                                    "Set up, and run `cloudflared access login https://trajectory.tools.hark.com`. (The message did reach the assistant; only the tool "
                                    "cannot see when it finished.)")
         runs = viewer.wait_for_runs(self.cfg.viewer_url, self.cfg.env, self.conv, self.sent, self.hdrs, timeout_s, folder=self.folder)
-        # after the awaited run ended, hold a little for stragglers (a subagent finishing, a wake-up), never the whole timeout
-        runs = viewer.settled(self.cfg.viewer_url, self.cfg.env, self.conv, self.hdrs, min(120.0, max(30.0, timeout_s - (time.monotonic() - t0))), folder=self.folder)
+        # the awaited run ended; keep holding while any real run (a browser subagent, a wake-up) is still working, up to the turn timeout
+        runs = viewer.settled(self.cfg.viewer_url, self.cfg.env, self.conv, self.hdrs, max(30.0, timeout_s - (time.monotonic() - t0)), folder=self.folder)
         last = runs[-1] if runs else {}
         calls: list[dict] = []
         if last.get("calls") and last.get("job"):
