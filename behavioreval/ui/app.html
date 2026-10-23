@@ -214,7 +214,8 @@ async function api(path, body) {
   return j;
 }
 const store = { get: (k, d) => { try { const v = JSON.parse(localStorage.getItem("bet." + k)); return v === null ? d : v; } catch (e) { return d; } }, set: (k, v) => { try { localStorage.setItem("bet." + k, JSON.stringify(v)); } catch (e) {} } };
-let STATE = {}, PROFILES = [], TESTS = [], RUNS = [], ROWS = [], CHAT = null, CUR = null, SEL = new Set(store.get("sel", [])), COLS = new Set(store.get("cols", []));
+let STATE = {}, PROFILES = [], TESTS = [], RUNS = [], ROWS = [], CHAT = null, CUR = null, SEL = new Set(store.get("sel", [])), COLS = new Set();   // models are chosen fresh every time the page opens
+try { localStorage.removeItem("bet.cols"); } catch (e) {}
 const me = () => $("me").value || STATE.default_profile;
 const myProfile = () => PROFILES.find(p => p.id === me()) || {};
 const onChrome = () => STATE.endpoint === "chrome";
@@ -310,7 +311,7 @@ function selectTests(on) { SEL = on ? new Set(TESTS.filter(t => !t.problems.leng
 function colChips(el) {
   el.innerHTML = (STATE.columns || []).map(c => `<span class="chip ${COLS.has(c.id) ? "on" : ""}" title="${esc(c.label || "")}" onclick="toggleCol('${esc(c.id)}')">${esc(c.id)}</span>`).join("");
 }
-function toggleCol(id) { if (COLS.has(id)) COLS.delete(id); else COLS.add(id); store.set("cols", [...COLS]); renderBar(); if (!$("page-run").hidden) renderRunForm(); }
+function toggleCol(id) { if (COLS.has(id)) COLS.delete(id); else COLS.add(id); renderBar(); if (!$("page-run").hidden) renderRunForm(); }
 function renderBar() {
   $("bar-count").textContent = `${SEL.size} card(s)`;
   colChips($("bar-cols"));
