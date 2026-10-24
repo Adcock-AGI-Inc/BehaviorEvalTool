@@ -111,11 +111,12 @@ class ChromeEndpoint:
             self.out(f"  viewer folder: {self.folder}")
         label, model, provider = column(self.cfg)
         self.note = f"model={model}" + (f" modelProvider={provider}" if provider else "") + " on every message" if model else "the product's default model"
-        if self.cfg.lane:
-            # Step 1 for a lane: the /model slash command, the same switch a person types (the worker handles it before
-            # the agent loop; the account needs the clear_command_allowlist flag). Its reply is not stored on the page
-            # and it starts no run, so it is not counted. The per-message override below is sent as well.
-            cmd = f"/model hark-{self.cfg.lane}"
+        if self.cfg.lane or self.cfg.model:
+            # Step 1 for a lane or an explicit model: the /model slash command, the same switch a person types (the
+            # worker handles it before the agent loop; the account needs the clear_command_allowlist flag). Its reply
+            # is not stored on the page and it starts no run, so it is not counted. The per-message override below is
+            # sent as well.
+            cmd = f"/model hark-{self.cfg.lane}" if self.cfg.lane else f"/model {model} {provider or 'openrouter'}"
             status, data = self.api("POST", "/api/messages/send", {"conversationId": self.conv, "message": cmd, "idempotencyKey": str(uuid.uuid4())})
             if status != 200:
                 raise RuntimeError(f"{cmd} was refused: HTTP {status}: {str(data)[:160]}")
