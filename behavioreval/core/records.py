@@ -22,7 +22,7 @@ def run_dir(data_root: Path, tag: str) -> Path:
 
 def file_name(column: str, account: str, scenario: str, attempt: int = 0) -> str:
     acct = (account or "noaccount").split("@")[0]
-    return f"{column or 'default'}__{acct}__" + scenario.replace("/", "_") + (f".run{attempt}" if attempt else "") + ".conversation.json"
+    return f"{(column or 'default').replace('/', '_')}__{acct}__" + scenario.replace("/", "_") + (f".run{attempt}" if attempt else "") + ".conversation.json"
 
 
 def save_conversation(d: Path, conv: Conversation, score: dict | None = None, attempt: int = 0) -> Path:

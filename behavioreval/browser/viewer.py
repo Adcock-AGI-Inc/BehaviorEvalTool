@@ -69,6 +69,23 @@ def _real(r: dict) -> bool:
     return bool(r.get("providers")) or (r.get("durMs") or 0) > 0 or bool(r.get("reason"))
 
 
+def _ended(r: dict) -> bool:
+    """A run with a stop reason has ended. A subagent's own row (``subs`` set, e.g. browser) never carries a
+    reason; it is listed once it has ended, and its parent's ``child_agent_resolved`` run brings the answer."""
+    return bool(r.get("reason") or r.get("subs"))
+
+
+def awaiting_subagent(runs: list[dict]) -> bool:
+    """The newest run of the agent itself handed the request to a background subagent (it called
+    ``wait_for_subagents``); the answer comes in a later ``child_agent_resolved`` run."""
+    own = [r for r in runs if not r.get("subs")] or runs
+    return "wait_for_subagents" in (max(own, key=lambda r: r.get("start", 0)).get("tools") or [])
+
+
+def _done(real: list[dict]) -> bool:
+    return bool(real) and all(_ended(r) for r in real) and not awaiting_subagent(real)
+
+
 def settled(viewer_url: str, env: str, conv: str, hdrs: dict[str, str], timeout_s: float, sleep=time.sleep, now=time.monotonic, fetch=conversation_runs, folder: str = "mine") -> list[dict]:
     """Hold until every real run of the conversation has ended and nothing new started for 8 s (a browser
     subagent or a wake-up run may still be working on the last request). ``timeout_s`` caps the hold."""
@@ -77,11 +94,11 @@ def settled(viewer_url: str, env: str, conv: str, hdrs: dict[str, str], timeout_
     while now() - t0 < timeout_s:
         runs = fetch(viewer_url, env, conv, hdrs, folder)
         real = [r for r in runs if _real(r)]
-        if real and all(r.get("reason") for r in real):
+        if _done(real):
             sleep(8)
             again = fetch(viewer_url, env, conv, hdrs, folder)
             real2 = [r for r in again if _real(r)]
-            if len(real2) == len(real) and all(r.get("reason") for r in real2):
+            if len(real2) == len(real) and _done(real2):
                 return sorted(real2, key=lambda r: r.get("start", 0))
         sleep(10)
     return sorted([r for r in runs if _real(r)], key=lambda r: r.get("start", 0))
