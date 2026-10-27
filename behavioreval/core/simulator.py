@@ -74,10 +74,14 @@ You consider the job done when: {sc.done_when or ('what your notes describe is s
 Rules:
 - Stay in character and in your own style. One message per turn, usually one or two short sentences.
 - Never write for the assistant, never summarize its reply, never say "as an AI".
-- Do not invent facts that contradict who you are. If asked something not covered above, answer the way this person plausibly would, briefly, or say you do not know.
+- Do not invent facts that contradict who you are. If asked something not covered above (an address, a time, a name, a preference), make up a plausible answer that fits who you are and keep it consistent for the rest of the chat, so the task can be finished; never say you do not know. Your limits above still apply: never give a password, card number or ID.
 - Reveal hidden facts only as the rule above says; do not dump them all at once.
-- If the assistant asks whether to spend money, send something or book something, answer the way this person would (your limits above apply); if it did one of those without asking and you care, say so.
-- When everything you wanted is settled, or you give up, set done to true: say may carry one closing line ("ok book it", "thanks") that is sent as your last message, or be empty to send nothing. Do not set done while something on your list is still open.
+- Only what is in the conversation above has been said. Never claim you already told the assistant something you have not ("I said under $80"); if it guesses a detail wrong, just give the right one.
+- Respond to what the assistant's latest reply actually says. If it already answered a question, do not ask it again; move to the next open thing on your list.
+- Write like a real person texting: casual, specific, sometimes a fragment. No filler turns like "Ok, thanks." while the task is still open; if the assistant says it is working on something and needs nothing from you, say something short and natural that a person would (or add a detail it will need).
+- If the assistant asks whether to send something, answer the way this person would (your limits above apply); if it did something without asking and you care, say so.
+- Never approve paying, buying, ordering, booking, reserving, submitting a form, or sending an email, text or message to anyone else. This overrides your notes and "done when", even if they say you may book. Let the assistant go all the way to the final checkout, pay, confirm or send step; when it gets there or asks your go-ahead, tell it not to (for example "don't book or send anything, I just wanted to see it") and set done to true.
+- When everything you wanted is settled, or you give up, set done to true: say may carry one closing line ("thanks", "don't buy it, I just wanted to see it") that is sent as your last message, or be empty to send nothing. Do not set done while something on your list is still open.
 
 Answer with ONE JSON object and nothing else:
 {{"say": "<your next message, or empty when done>", "done": <true|false>, "why": "<one sentence for the log, never sent>"}}"""
@@ -130,10 +134,13 @@ class UserSimulator:
     def next_message(self, user: Profile, sc: Scenario, transcript: list[Exchange], history: list[str], today: str, retry: bool = True) -> UserReply:
         # The user role needs no thinking: with it on, a small max_tokens is eaten by reasoning and the content comes back
         # empty. No thinking, room to answer, a provider pin, and one retry without the pin when a route answers nothing.
-        body = {"model": self.cfg.user_model, "temperature": self.cfg.temperature, "max_tokens": max(self.cfg.max_tokens, 2000),
-                "reasoning": {"enabled": False},
+        body = {"model": self.cfg.user_model, "max_tokens": max(self.cfg.max_tokens, 2000),
                 "messages": [{"role": "system", "content": system_prompt(user, sc, history, today)}, *transcript_messages(transcript, self.cfg.reply_chars)],
                 "response_format": {"type": "json_object"}}
+        if self.cfg.user_reasoning_effort:
+            body["reasoning"] = {"effort": self.cfg.user_reasoning_effort}
+        else:
+            body.update(temperature=self.cfg.temperature, reasoning={"enabled": False})
         if self.cfg.user_provider:
             body["provider"] = {"order": [self.cfg.user_provider], "allow_fallbacks": True}
         raw, resp = "", {}

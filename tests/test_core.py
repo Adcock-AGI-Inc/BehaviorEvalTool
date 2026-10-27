@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 import tempfile
 import threading
 import unittest
@@ -163,10 +164,15 @@ class SimulatorTests(unittest.TestCase):
         def post(body, key):
             bodies.append(body)
             return {"choices": [{"message": {"content": answers.pop(0)}}], "usage": {"total_tokens": 5}}
-        r = UserSimulator(self.cfg, "k", post).next_message(ALEX, self.sc, [Exchange("find me a mechanic", "which city?")], [], "2026-10-20")
+        cfg = replace(self.cfg, user_reasoning_effort="")
+        r = UserSimulator(cfg, "k", post).next_message(ALEX, self.sc, [Exchange("find me a mechanic", "which city?")], [], "2026-10-20")
         self.assertEqual((r.say, len(bodies)), ("sunnyvale", 2))
         self.assertEqual(bodies[0]["reasoning"], {"enabled": False})
         self.assertEqual([m["role"] for m in bodies[0]["messages"]], ["system", "assistant", "user"])
+        bodies.clear()
+        answers.append('{"say": "sunnyvale", "done": false, "why": "ok"}')
+        UserSimulator(replace(cfg, user_reasoning_effort="low"), "k", post).next_message(ALEX, self.sc, [], [], "2026-10-20")
+        self.assertEqual((bodies[0]["reasoning"], "temperature" in bodies[0]), ({"effort": "low"}, False))
         r = UserSimulator(self.cfg, "k", lambda b, k: (_ for _ in ()).throw(OSError("down"))).next_message(ALEX, self.sc, [], [], "2026-10-20")
         self.assertEqual(r.say, "hold on, can you say that again in one line?")
 
