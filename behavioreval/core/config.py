@@ -16,6 +16,7 @@ CONFIG_FILE = ROOT / "config.json"
 class Config:
     user_model: str = "deepseek/deepseek-v4.1-flash-1017"
     user_provider: str = "deepinfra/fp8"   # OpenRouter provider pin for the user model ("" = any)
+    user_reasoning_effort: str = ""    # "" turns the user model's reasoning off; models that cannot (Claude 5.x) take "low" and no temperature
     temperature: float = 0.7
     max_tokens: int = 300
     max_turns: int = 10                # at most this many user messages per conversation (the user usually stops earlier)

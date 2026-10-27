@@ -38,23 +38,48 @@ def conversation_runs(viewer_url: str, env: str, conv: str, hdrs: dict[str, str]
     return json.loads(get(viewer_url, f"/api/{env}/conversations/{folder}/{conv}/runs", hdrs)).get("runs", [])
 
 
+def _server_error(exc: RuntimeError) -> bool:
+    """The viewer's own failure (HTTP 5xx), which a retry can outlast; a 4xx is a real answer."""
+    return " answered HTTP 5" in str(exc)
+
+
 def folder_for(viewer_url: str, env: str, conv: str, hdrs: dict[str, str], email: str) -> str:
     """The folder this conversation's runs will appear in: the account's own folder when the viewer knows it, else ``mine``."""
-    if email:
+    for attempt in range(3 if email else 0):
         try:
             get(viewer_url, f"/api/{env}/conversations/{email}/{conv}/runs", hdrs)
             return email
-        except RuntimeError:
-            pass
+        except RuntimeError as exc:
+            if not _server_error(exc) or attempt == 2:
+                break
+            time.sleep(5)
+        except OSError:   # a slow viewer is not an answer; ask again before falling back to "mine"
+            if attempt == 2:
+                raise
+            time.sleep(5)
     return "mine"
+
+
+def _poll(fetch, viewer_url: str, env: str, conv: str, hdrs: dict[str, str], folder: str, last: list[dict]) -> list[dict]:
+    """One poll of the conversation's runs. A slow or dropped request (the viewer under several parallel pollers)
+    keeps the last answer for this round instead of ending the conversation; the turn timeout still applies."""
+    try:
+        return fetch(viewer_url, env, conv, hdrs, folder)
+    except OSError:
+        return last
+    except RuntimeError as exc:
+        if not _server_error(exc):
+            raise
+        return last
 
 
 def wait_for_runs(viewer_url: str, env: str, conv: str, expected: int, hdrs: dict[str, str], timeout_s: float,
                   sleep=time.sleep, now=time.monotonic, fetch=conversation_runs, folder: str = "mine") -> list[dict]:
     """The conversation's runs once ``expected`` of them have ended (a non-empty reason)."""
     t0 = now()
+    runs: list[dict] = []
     while True:
-        runs = fetch(viewer_url, env, conv, hdrs, folder)
+        runs = _poll(fetch, viewer_url, env, conv, hdrs, folder, runs)
         done = [r for r in runs if r.get("reason")]
         if len(done) >= expected:
             return sorted(runs, key=lambda r: r.get("start", 0))
@@ -63,10 +88,14 @@ def wait_for_runs(viewer_url: str, env: str, conv: str, expected: int, hdrs: dic
         sleep(10)
 
 
+# A /model command's skeleton row lasts a few milliseconds; any run that did work takes longer than this.
+SKELETON_MAX_MS = 1000
+
+
 def _real(r: dict) -> bool:
     """A run that actually ran: the viewer also lists skeleton rows (no provider, no duration, no reason) for a slash
     command such as /model or a wake-up that never started; those never get a reason and must not be waited for."""
-    return bool(r.get("providers")) or (r.get("durMs") or 0) > 0 or bool(r.get("reason"))
+    return bool(r.get("providers")) or (r.get("durMs") or 0) >= SKELETON_MAX_MS or bool(r.get("reason"))
 
 
 def _ended(r: dict) -> bool:
@@ -92,11 +121,11 @@ def settled(viewer_url: str, env: str, conv: str, hdrs: dict[str, str], timeout_
     t0 = now()
     runs: list[dict] = []
     while now() - t0 < timeout_s:
-        runs = fetch(viewer_url, env, conv, hdrs, folder)
+        runs = _poll(fetch, viewer_url, env, conv, hdrs, folder, runs)
         real = [r for r in runs if _real(r)]
         if _done(real):
             sleep(8)
-            again = fetch(viewer_url, env, conv, hdrs, folder)
+            again = _poll(fetch, viewer_url, env, conv, hdrs, folder, [])
             real2 = [r for r in again if _real(r)]
             if len(real2) == len(real) and _done(real2):
                 return sorted(real2, key=lambda r: r.get("start", 0))

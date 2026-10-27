@@ -1,11 +1,11 @@
 {
-  "user_model": "deepseek/deepseek-v4.1-flash-1017",
-  "user_provider": "deepinfra/fp8",
+  "user_model": "anthropic/claude-sonnet-5.5",
+  "user_provider": "",
   "temperature": 0.7,
   "max_tokens": 300,
   "max_turns": 10,
   "turn_timeout_s": 600,
-  "reply_chars": 2000,
+  "reply_chars": 8000,
   "max_consecutive_errors": 2,
   "lane": "",
   "model": "",
@@ -123,5 +123,6 @@
   "scenarios_dir": "scenarios",
   "session_cache": "~/.cache/hark-eval-clear",
   "secrets_file": ".env",
-  "ui_port": 8930
+  "ui_port": 8930,
+  "user_reasoning_effort": "low"
 }

@@ -14,6 +14,9 @@ from behavioreval.core.config import Config, column
 from behavioreval.core.endpoint import AssistantTurn
 
 ENVS = {"dev": "https://dev.hark.com", "staging": "https://staging.hark.com", "prod": "https://app.hark.com"}
+REPLY_WAIT_S = 30
+FETCH_ATTEMPTS = 3
+FETCH_RETRY_S = 5
 
 
 def web_url(cfg: Config) -> str:
@@ -54,7 +57,17 @@ class ChromeEndpoint:
 
     # ── page side ────────────────────────────────────────────────────────
     def api(self, method: str, path: str, body=None):
-        out = self.tab.js(fetch_js(self.web + path, method, body))
+        """One request from the page. A network blip ("Failed to fetch") is retried; a send carries an idempotency
+        key, so a retry never posts a message twice."""
+        for attempt in range(FETCH_ATTEMPTS):
+            try:
+                out = self.tab.js(fetch_js(self.web + path, method, body))
+                break
+            except (RuntimeError, TimeoutError) as exc:
+                transient = isinstance(exc, TimeoutError) or "Failed to fetch" in str(exc)
+                if not transient or attempt == FETCH_ATTEMPTS - 1:
+                    raise
+                time.sleep(FETCH_RETRY_S)
         if not isinstance(out, dict):
             raise RuntimeError(f"fetch {path} gave no result (not on a Hark page?)")
         return out.get("status"), (out.get("json") if out.get("json") is not None else out.get("text"))
@@ -126,6 +139,17 @@ class ChromeEndpoint:
         self.seen = {r.get("id") for r in self.rows() if r.get("id")}
         return self.conv
 
+    def _read_reply(self, sent_message: bool) -> tuple[list[dict], str]:
+        """The page's rows and the new delivered reply text. A run that called send_message has a reply on the way,
+        which can land on the page a few seconds after the viewer lists the run as ended, so wait up to REPLY_WAIT_S."""
+        deadline = time.monotonic() + (REPLY_WAIT_S if sent_message else 0)
+        while True:
+            current = self.rows()
+            reply = " ".join(text_of(r) for r in current if r.get("id") not in self.seen and delivered(r))
+            if reply or time.monotonic() >= deadline:
+                return current, reply
+            time.sleep(3)
+
     def turn(self, text: str, timeout_s: float) -> AssistantTurn:
         label, model, provider = column(self.cfg)
         body = {"conversationId": self.conv, "message": text, "idempotencyKey": str(uuid.uuid4())}
@@ -141,7 +165,7 @@ class ChromeEndpoint:
         if self.sent == 1:   # the viewer must list this conversation at all; otherwise every turn would wait the full timeout
             seen_any = False
             while time.monotonic() - t0 < 150:
-                if viewer.conversation_runs(self.cfg.viewer_url, self.cfg.env, self.conv, self.hdrs, self.folder):
+                if viewer._poll(viewer.conversation_runs, self.cfg.viewer_url, self.cfg.env, self.conv, self.hdrs, self.folder, []):
                     seen_any = True
                     break
                 time.sleep(10)
@@ -160,9 +184,9 @@ class ChromeEndpoint:
                 calls = viewer.calls_of(viewer.rollouts(self.cfg.viewer_url, self.cfg.env, [f"{self.folder}/{self.conv}/{last['job']}"], self.hdrs))
             except Exception as exc:
                 self.out(f"    (rollout not read: {type(exc).__name__})")
-        current = self.rows()
-        reply = " ".join(text_of(r) for r in current if r.get("id") not in self.seen and delivered(r))
-        self.seen = {r.get("id") for r in current if r.get("id")}
+        current, reply = self._read_reply(sent_message=any("send_message" in (r.get("tools") or []) for r in runs))
+        # an assistant row without its text yet is not marked seen, so a late reply is still read next time
+        self.seen |= {r.get("id") for r in current if r.get("id") and (r.get("role") != "assistant" or delivered(r))}
         served = ",".join(last.get("providers") or [])
         reason = str(last.get("reason") or "")
         return AssistantTurn(reply=reply, reason=reason, calls=calls, duration_s=round((last.get("durMs") or 0) / 1000, 1),
