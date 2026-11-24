@@ -1,0 +1,12 @@
+{
+  "_help": "Every key is optional; behavioreval/refine/inputs.py (Settings) lists them all with defaults. skill_description is what Hark sees in its skill list.",
+  "skill_description": "PLACEHOLDER: one line Hark sees in its skill list",
+  "delivery": "personal_skill",
+  "rounds": 8,
+  "max_cost_usd": 25,
+  "max_conversations": 300,
+  "rollouts_train": 2,
+  "rollouts_holdout": 3,
+  "max_user_turns": 0,
+  "max_total_s": 0
+}

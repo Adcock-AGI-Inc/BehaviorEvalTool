@@ -122,6 +122,8 @@ config.json            models offered, judge, defaults (shared)
 .env                   your OpenRouter key (never shared)
 ~/behavioreval-data/   runs, logs, the judge's verdicts and your annotations (never shared)
 ~/.behavioreval/       the copied Chrome profile the tool's Chrome runs from (delete when done)
+rubric/                refine mode: the general rubric and the skill best-practices doc (shared)
+skills/<name>/         refine mode: one folder of inputs per skill; skills/_template is the starting point
 ```
 
 ## 8. Command line (same things without the page)
@@ -135,3 +137,121 @@ python3 -m behavioreval rescore ~/behavioreval-data/runs/<run> --only-unreadable
 python3 -m behavioreval audit ~/behavioreval-data/runs/<run> --sample 10 --repeats 2   # is the judge consistent
 python3 -m unittest discover -s tests -t .                           # tests
 ```
+
+## 9. Refine mode: improve one skill automatically
+
+Refine mode treats a skill's text the way the model team treats model weights. A rubric says what good looks
+like, simulated users produce many conversations, a judge grades them, an editor makes one small explained
+change per round, and a change is kept only if it does better on held-out cards the editor never saw.
+
+```
+v0 ─▶ install on the test account ─▶ train + held-out conversations ─▶ judge + rubric
+          ▲                                                               │
+          │                                       diagnose why each failure happened
+          │                                                               │
+   keep or reject ◀─ held-out + pairwise vs best ◀─ screen on train ◀─ editor: 3 small edits for the top skill-fixable failure
+```
+
+### What you supply
+
+| File | What it holds |
+|---|---|
+| `rubric/general.md` | what every skill conversation is graded on, one `- ` line per check (shared) |
+| `rubric/skill_best_practices.md` | how a good skill is written; the editor follows it (shared) |
+| `skills/<name>/goal.md` | what the skill must achieve and what success looks like |
+| `skills/<name>/criteria.md` | the skill's own rubric lines, one `- ` line each |
+| `skills/<name>/personality.md` | how Hark should sound doing this |
+| `skills/<name>/personas.jsonl` | the simulated users: facts (also what personalization is checked against), style, limits |
+| `skills/<name>/cards.jsonl` | the cards, as in §4, plus `"split"` (`train`, `holdout` or `final`) and `"persona"` |
+| `skills/<name>/start.md` | the current skill text; leave it out to have round 0 write a first version from the goal |
+| `skills/<name>/refine.json` | the skill's description in Hark's list, budgets, models, speed targets (all keys: `behavioreval/refine/inputs.py`, `Settings`) |
+
+Any file that still says `PLACEHOLDER` stops the run. About a third of the cards should be held-out. A few
+`final` cards are scored once at the end, on v0 and on the best version, and never used to choose.
+
+### Commands
+
+```bash
+python3 -m behavioreval refine new gift-buying          # copy skills/_template
+python3 -m behavioreval refine check gift-buying        # what is missing; conversations per round
+python3 -m behavioreval refine run gift-buying --rounds 8 --max-cost 25
+python3 -m behavioreval refine resume ~/behavioreval-data/runs/refine/<run>
+python3 -m behavioreval refine report ~/behavioreval-data/runs/refine/<run>
+```
+
+`--endpoint fake` runs everything except Hark (a scripted assistant), for checking the plumbing.
+
+### What you get in the morning
+
+Everything lands in `~/behavioreval-data/runs/refine/<date>-<skill>/`:
+
+- `report.md`: scores by round for train and held-out, the final-test numbers, why train conversations failed
+  (by cause), the 3 worst conversations of the best version with links to open them on dev, cost, blockers,
+  the final skill text, and the whole diff from v0.
+- `changelog.md`: every version tried, kept or rejected, with its diff, its one-line reason, the failure it
+  targeted, its scores, the pairwise tally, and a link to every held-out conversation behind the decision.
+- `versions/vN.md` and `vN.diff`, `state.json`, and every conversation as the usual record.
+
+### How a round decides
+
+1. **Diagnose.** Each failed or slow train conversation gets one cause. The cause can be: not loaded, ignored, silent,
+   caused it, product or tool, simulator, or judge. Only the three skill causes (ignored, silent, caused it)
+   reach the editor.
+2. **Edit.** The editor writes 3 candidate edits for the heaviest such failure group (severity times count). Each
+   is an exact find/replace, an addition or a deletion with a one-line reason. An edit is dropped before it runs
+   if it names train-card specifics (names, places, amounts), changes more than 6 lines, or makes the skill
+   too long.
+3. **Screen and test.** Survivors are screened on train, and the best one runs on held-out. A blind pairwise
+   judge compares it with the best version on each held-out conversation, in both orders; if the two orders
+   disagree, the result counts as equal.
+4. **Keep or reject.** The candidate is kept if held-out quality rises by more than the noise margin. It is
+   also kept at equal quality when it holds the pass rate and is either faster or at least 10% shorter, or
+   when pairwise prefers it. It is rejected if a held-out card that always passed now always fails, or if
+   pairwise calls it worse more often than better. Speed only counts when quality holds, so a version cannot
+   win by doing less.
+5. **Stop.** The run stops after `rounds`, after `plateau` rejected rounds in a row, when nothing skill-fixable
+   is left, or when a cap is hit. After a crash, `resume` reruns nothing that already finished.
+
+### How the skill reaches Hark
+
+Default (`"delivery": "personal_skill"`): in a setup conversation, the tool asks Hark to delete and re-create a
+custom skill of that name on the test account with the candidate text. It checks that the create call carried
+the exact text, and that Hark reads back the stored first and last lines. Only that account sees the skill,
+and Hark loads it the normal way: it sees the description in its skill list and calls the skill tool. A
+bare-name load prefers the account's own skill over a shared one of the same name. If more than half of the
+train conversations never loaded the candidate, the run stops: the description or the delivery needs fixing,
+not the text. The candidate is deleted at the end.
+`"delivery": "paste"` instead sends the skill as a hidden first message in each conversation. Results are then
+labeled "pasted, not loaded", because Hark never had to choose the skill.
+
+Candidates run one version at a time on one account. Hark's memory carries over between conversations on the
+account.
+
+### Safety
+
+The simulated user never approves paying, booking or sending (§3). After every conversation, its tool calls are
+matched against the halt rules in `refine.json` (defaults: email send, reply or forward; texts; payment tools;
+calendar invites to other people; telling the browser to place an order or confirm a booking). A match stops
+the whole run, and the report says Hark would have completed the step. A reply that only claims such a step is
+listed as a warning. Refine refuses to run on Chrome unless `env` is `dev`.
+
+### Cost and time
+
+The dry-run fixture (`tests/fixtures/refine`, 2 cards, 1 round, scripted assistant) cost $0.06 in our model
+calls. On dev, one conversation takes 2 to 10 minutes. `refine check` prints the conversations per round
+(about 20 to 25 with the defaults on 6 train and 3 held-out cards), which comes to roughly 10 to 15 rounds for
+one skill in a night. `max_cost_usd` caps our own model calls only. Hark's own cost on dev is not visible to
+the tool, and `max_conversations` is the cap on that side.
+
+### Known limits, and what engineering is asked for
+
+- **Per-call timing and tool results.** The trajectory viewer export gives per-run durations and tool call
+  names and inputs, with no per-call timing, no tool results and no browser-subagent steps. Diagnose therefore
+  works at turn level, and the halt check sees only the main agent's calls. Ask: include per-call timing,
+  results and subagent steps in the viewer's rollout export.
+- **Exact stored text, and the shared version.** Optional. If Hark's copy of the text ever drifts, or to test
+  the shared `_system/` version itself, an employee can push the candidate under a new name to the dev channel
+  only, with `audience: ["<test account>"]`. It has to be a new name: an audience on an existing name hides
+  that skill from everyone else (`services/skills/internal/handler/audience.go`).
+- **Hark's cost per conversation.** Ask: a way to read it for the test account on dev (the worker's debug
+  "llm response" log carries tokens per run), so the report can show it next to our own cost.
