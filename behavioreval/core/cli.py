@@ -1,4 +1,4 @@
-"""``python3 -m behavioreval {ui, run, lint, scenarios, profiles, simulate, accounts, check, config, rescore, audit}``."""
+"""``python3 -m behavioreval {ui, run, lint, scenarios, profiles, simulate, accounts, check, config, rescore, audit, refine}``."""
 from __future__ import annotations
 
 import argparse
@@ -86,6 +86,8 @@ def build_parser() -> argparse.ArgumentParser:
     au.add_argument("--repeats", type=int, default=2)
     au.add_argument("--seed", type=int, default=1)
     _add_config_flags(au)
+    from behavioreval.refine import cli as refine_cli
+    refine_cli.add_parser(sub)
     return p
 
 
@@ -506,6 +508,11 @@ def cmd_ui(args) -> int:
     return serve(cfg, port=args.port or cfg.ui_port, open_browser=not args.no_browser)
 
 
+def cmd_refine(args) -> int:
+    from behavioreval.refine import cli as refine_cli
+    return refine_cli.main(args)
+
+
 def main(argv: list[str] | None = None) -> int:
     try:
         sys.stdout.reconfigure(line_buffering=True)
@@ -514,7 +521,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         return {"ui": cmd_ui, "run": cmd_run, "lint": cmd_lint, "scenarios": cmd_scenarios, "profiles": cmd_profiles, "simulate": cmd_simulate,
-                "accounts": cmd_accounts, "chrome": cmd_chrome, "check": cmd_check, "config": cmd_config, "rescore": cmd_rescore, "audit": cmd_audit}[args.cmd](args)
+                "accounts": cmd_accounts, "chrome": cmd_chrome, "check": cmd_check, "config": cmd_config, "rescore": cmd_rescore, "audit": cmd_audit, "refine": cmd_refine}[args.cmd](args)
     except ValueError as exc:
         print(f"error: {exc}")
         return 2

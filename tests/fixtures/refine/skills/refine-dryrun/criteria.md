@@ -1,0 +1,2 @@
+- Asks the budget before suggesting anything.
+- Ends with a shortlist of at most three ideas.

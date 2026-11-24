@@ -1,0 +1,12 @@
+{
+  "_help": "A plumbing fixture, not a real skill. --endpoint fake runs it with no Hark; on Chrome it installs a personal skill named refine-dryrun on the dev test account and deletes it at the end.",
+  "skill_description": "Helps choose a gift for someone and get to a short list of ideas (refine-tool test fixture)",
+  "delivery": "personal_skill",
+  "rounds": 1,
+  "rollouts_train": 1,
+  "rollouts_holdout": 1,
+  "candidates_per_round": 2,
+  "parallel": 2,
+  "max_cost_usd": 2,
+  "max_conversations": 12
+}

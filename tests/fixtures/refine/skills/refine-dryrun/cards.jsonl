@@ -1,0 +1,2 @@
+{"id": "refine-dryrun/01_train", "split": "train", "persona": "pat", "opening": "need a gift idea for my brother", "hidden": ["budget about $60", "brother likes cycling"], "done_when": "a shortlist of gift ideas is given", "max_turns": 3}
+{"id": "refine-dryrun/02_hold", "split": "holdout", "persona": "pat", "opening": "what should I get my mom for her birthday", "hidden": ["budget $40", "mom gardens"], "done_when": "a shortlist of gift ideas is given", "max_turns": 3}

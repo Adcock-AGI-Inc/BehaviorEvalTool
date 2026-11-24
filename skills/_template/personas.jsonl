@@ -1,0 +1,3 @@
+# One simulated user per line. id: lowercase; facts: what they know about themselves (the simulated user answers from these,
+# and the judge checks personalization against them); style: how they type; limits: what they never do.
+{"id": "PLACEHOLDER", "facts": {"name": "", "home": ""}, "style": "", "limits": ["never gives a card number or password"]}

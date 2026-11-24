@@ -1,0 +1,3 @@
+# One test card per line: the usual card fields (see README §4) plus "split" (train | holdout | final) and "persona" (an id from personas.jsonl).
+# About a third held-out; a few final cards are scored once, at the end, and never used to choose. The editor never sees held-out or final cards.
+{"id": "PLACEHOLDER/01_example", "split": "train", "persona": "PLACEHOLDER", "opening": "", "hidden": [], "done_when": ""}
